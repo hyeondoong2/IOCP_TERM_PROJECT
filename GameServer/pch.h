@@ -29,6 +29,7 @@
 
 // GameServer headers
 #include "protocol_2026.h"
+#include "Global.h"
 
 // Timer 
 enum TIMER_EVENT_TYPE

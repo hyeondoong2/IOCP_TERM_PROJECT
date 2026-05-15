@@ -1,12 +1,19 @@
 #pragma once
 
+class AcceptOverlapped;
+
+extern HANDLE g_hIocp;
+extern SOCKET g_listenSocket;
+extern SOCKET g_acceptSocket;
+
 class NetworkManager
 {
 private:
-    HANDLE _hIocp;
-    SOCKET _listenSocket;
-    SOCKET _clientSocket;
+    static AcceptOverlapped _acceptContext;
 
+    static void Init();
+    static void BindAndListen();
+    static void PostAccept();
 public:
     NetworkManager() = default;
     ~NetworkManager()
@@ -14,10 +21,9 @@ public:
         Stop();
     }
 
-    bool Init();
-    bool Listen();                
-    void Stop();
-    bool PostAccept();;
+    static bool Start();
+    static void Stop();
 
-    HANDLE GetIocpHandle() { return _hIocp; }
+    HANDLE GetIocpHandle() { return g_hIocp; }
 };
+

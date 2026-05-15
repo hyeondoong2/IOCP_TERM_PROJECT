@@ -21,8 +21,12 @@ public:
 class AcceptOverlapped : public OverlappedEx
 {
 public:
+    char _accept_buf[BUF_SIZE];
+
+public:
     AcceptOverlapped() : OverlappedEx(IO_ACCEPT)
     {
+        ZeroMemory(_accept_buf, sizeof(_accept_buf));
     }
 };
 
@@ -42,6 +46,8 @@ public:
     void ReadyToRecv()
     {
         Reset();
+        _wsabuf.buf = _recv_buf;
+        _wsabuf.len = BUF_SIZE;
     }
 };
 

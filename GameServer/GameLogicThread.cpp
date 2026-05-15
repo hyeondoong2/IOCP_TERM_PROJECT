@@ -35,7 +35,6 @@ void GameLogicThread::Run()
         }
 
         // 이벤트 처리
-    
         event();
     }
 }

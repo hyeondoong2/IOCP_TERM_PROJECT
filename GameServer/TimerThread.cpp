@@ -72,6 +72,13 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
 
     switch (timerEvent.event_type)
     {
-
+    case TIMER_EVENT_MOVE:
+    case TIMER_EVENT_NPC_MOVE:
+    default:
+        break;
     }
 }
+
+
+
+

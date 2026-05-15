@@ -59,3 +59,11 @@ enum IO_TYPE
     IO_RECV,
     IO_SEND,
 };
+
+// Socket
+enum SOCKET_STATE 
+{ 
+    ST_FREE, 
+    ST_ALLOC, 
+    ST_INGAME 
+};

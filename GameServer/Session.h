@@ -1,15 +1,21 @@
 #pragma once
 
+class Session;
+
 class OverlappedEx
 {
 public:
     WSAOVERLAPPED _over;
     IO_TYPE _io_type;
 
+    // 비동기 작업이 끝날 때까지 세션이 살아있도록 shared_ptr로 참조 유지
+    std::shared_ptr<Session> _session;
+
 public:
-    explicit OverlappedEx(IO_TYPE io_type) : _io_type(io_type)
+    explicit OverlappedEx(IO_TYPE io_type, std::shared_ptr<Session> session)
+        : _io_type(io_type), _session(session)
     {
-        Reset();
+        ZeroMemory(&_over, sizeof(_over));
     }
 
     void Reset()
@@ -24,7 +30,8 @@ public:
     char _accept_buf[BUF_SIZE];
 
 public:
-    AcceptOverlapped() : OverlappedEx(IO_ACCEPT)
+    AcceptOverlapped(std::shared_ptr<Session> new_session)
+        : OverlappedEx(IO_ACCEPT, new_session)
     {
         ZeroMemory(_accept_buf, sizeof(_accept_buf));
     }
@@ -37,17 +44,23 @@ public:
     char _recv_buf[BUF_SIZE];
 
 public:
-    RecvOverlapped() : OverlappedEx(IO_RECV)
+    // 생성자에서는 일단 세션을 nullptr로...
+    // 세션이 막 만들어지는 시점엔 shared_from_this() 를 사용할 수 없음
+    RecvOverlapped() : OverlappedEx(IO_RECV, nullptr)
     {
         _wsabuf.buf = _recv_buf;
         _wsabuf.len = BUF_SIZE;
     }
 
-    void ReadyToRecv()
+    // WSARecv 직전에 호출 
+    void ReadyToRecv(std::shared_ptr<Session> session, int prev_remain)
     {
-        Reset();
-        _wsabuf.buf = _recv_buf;
-        _wsabuf.len = BUF_SIZE;
+        Reset(); 
+        _session = session; 
+
+   
+        _wsabuf.buf = _recv_buf + prev_remain;
+        _wsabuf.len = BUF_SIZE - prev_remain;
     }
 };
 
@@ -58,7 +71,8 @@ public:
     char _send_buf[BUF_SIZE];
 
 public:
-    SendOverlapped(char* packet) : OverlappedEx(IO_SEND)
+    SendOverlapped(std::shared_ptr<Session> session, char* packet)
+        : OverlappedEx(IO_SEND, session)
     {
         _wsabuf.len = packet[0];
         _wsabuf.buf = _send_buf;
@@ -81,6 +95,8 @@ public:
     std::queue<SendOverlapped*> _sendQueue;
 
 public:
+    Session() = default;
+
     explicit Session(SOCKET socket);
     ~Session() = default;
 

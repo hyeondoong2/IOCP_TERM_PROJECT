@@ -7,5 +7,5 @@ public:
 	~WorkerThread() = default;
 
 	void Disconnect(int clientId);
-	void DoWork();
+	void DoWork(HANDLE hIocp);
 };

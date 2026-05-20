@@ -5,9 +5,6 @@
 
 HANDLE g_hIocp = NULL;
 SOCKET g_listenSocket = NULL;
-SOCKET g_acceptSocket = NULL;
-
-AcceptOverlapped NetworkManager::_acceptContext;
 
 void NetworkManager::Init()
 {
@@ -32,12 +29,11 @@ void NetworkManager::BindAndListen()
     ::listen(g_listenSocket, SOMAXCONN);
 }
 
-bool NetworkManager::Start()
+void NetworkManager::Start()
 {
     Init();
     BindAndListen();
     PostAccept();
-    return true;
 }
 
 void NetworkManager::Stop()
@@ -59,29 +55,42 @@ void NetworkManager::Stop()
 
 void NetworkManager::PostAccept()
 {
-    if (g_acceptSocket != INVALID_SOCKET)
+    // 1. 앞으로 접속할 손님을 앉힐 '빈 세션'을 미리 생성합니다.
+    std::shared_ptr<Session> new_session = std::make_shared<Session>();
+
+    // 2. 세션의 소켓을 미리 생성해서 넣어둡니다.
+    new_session->_socket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+    if (new_session->_socket == INVALID_SOCKET)
     {
-        closesocket(g_acceptSocket);
-        g_acceptSocket = INVALID_SOCKET;
+        // 소켓 생성 실패 시 그냥 리턴하면 new_session은 자동 소멸됩니다.
+        return;
     }
 
-    g_acceptSocket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
-    if (g_acceptSocket == INVALID_SOCKET)
-        return;
-
-    _acceptContext.Reset();
+    // 3. AcceptOverlapped를 동적 할당하고, 미리 만든 세션을 뱃속에 쥐어줍니다.
+    AcceptOverlapped* accept_over = new AcceptOverlapped(new_session);
 
     DWORD bytes = 0;
     int addrSize = sizeof(SOCKADDR_IN);
 
-    AcceptEx(
+    // 4. AcceptEx 호출 (listen 소켓과 방금 만든 세션의 소켓을 엮어줍니다)
+    BOOL ret = AcceptEx(
         g_listenSocket,
-        g_acceptSocket,
-        _acceptContext._accept_buf,
+        new_session->_socket,       // <-- 전역 변수 대신 세션의 소켓 사용!
+        accept_over->_accept_buf,
         0,
         addrSize + 16,
         addrSize + 16,
         &bytes,
-        &_acceptContext._over
+        &accept_over->_over
     );
+
+    if (ret == FALSE)
+    {
+        int err = WSAGetLastError();
+        if (err != WSA_IO_PENDING)
+        {
+            delete accept_over;
+            std::cout << "AcceptEx Error: " << err << "\n";
+        }
+    }
 }

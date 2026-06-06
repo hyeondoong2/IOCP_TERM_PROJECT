@@ -5,6 +5,8 @@
 #include "DBThread.h"
 #include "UserDBHelper.h"
 #include "Player.h"
+#include "PlayerManager.h"
+#include "SectorManager.h"
 
 Session::Session(SOCKET socket)
     : _socket(socket), _st(ST_ALLOC)
@@ -33,6 +35,8 @@ int Session::GetId() const
 void Session::Disconnect()
 {
     SOCKET closeSocket = INVALID_SOCKET;
+
+    Logout();
 
     {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -188,6 +192,111 @@ void Session::OnSend(SendOverlapped* sendOver)
         PostSend(nextSend);
 }
 
+void Session::HandleLoginPacket(C2S_Login* packet)
+{
+    std::string username(packet->username);
+    std::wstring wUsername(username.begin(), username.end());
+
+    GGameLogicThread->PostEvent([self = shared_from_this(), username, wUsername]()
+        {
+            self->ProcessLoginDatabase(username, wUsername);
+        });
+}
+
+void Session::ProcessLoginDatabase(const std::string& username, const std::wstring& wUsername)
+{
+    GDBManager->PostTask([self = shared_from_this(), username, wUsername](DBConnection& db)
+        {
+            short dbX = 0, dbY = 0;
+            bool isSuccess = false;
+
+            if (UserDBHelper::IsUserRegistered(db, wUsername))
+            {
+                DB_USER_INFO info = UserDBHelper::ExtractUserInfo(db, wUsername);
+                dbX = info.x; dbY = info.y;
+                isSuccess = true;
+            }
+            else
+            {
+                dbX = rand() % WORLD_WIDTH;
+                dbY = rand() % WORLD_HEIGHT;
+                isSuccess = UserDBHelper::AddUserInfoInDataBase(db, wUsername, dbX, dbY);
+            }
+
+            GGameLogicThread->PostEvent([self, username, dbX, dbY, isSuccess]()
+                {
+                    self->OnLoginResult(username, dbX, dbY, isSuccess);
+                });
+        });
+}
+
+void Session::OnLoginResult(const std::string& username, short dbX, short dbY, bool isSuccess)
+{
+    if (!isSuccess)
+    {
+        send_login_fail_packet();
+        return;
+    }
+
+    std::shared_ptr<Player> newPlayer = std::make_shared<Player>();
+    newPlayer->InitFromLogin(GetId(), username, dbX, dbY, shared_from_this());
+    _owner = newPlayer;
+
+    send_login_success_packet();
+    send_my_avatar_info_packet();
+
+    GPlayerManager->AddPlayer(newPlayer);
+    GSectorManager->BroadcastAvatarInfoToNearbyPlayers(newPlayer);
+    GSectorManager->SendNearbyPlayersToPlayer(newPlayer);
+
+    std::cout << username << " 로그인 성공! 좌표: (" << dbX << ", " << dbY << ")\n";
+}
+
+void Session::HandleMovePacket(C2S_Move* packet)
+{
+    GGameLogicThread->PostEvent([self = shared_from_this(), x = packet->x, y = packet->y, move_time = packet->move_time]()
+        {
+            auto player = self->_owner.lock();
+            if (!player) return;
+
+            player->_x = x;
+            player->_y = y;
+            player->_lastMoveTime = move_time;
+
+            GSectorManager->UpdatePlayerSector(player);
+            GSectorManager->BroadcastMove(player);
+        });
+}
+
+void Session::Logout()
+{
+    auto player = _owner.lock();
+    if (!player) return;
+
+    std::string username = player->_name;
+    std::wstring wUsername(username.begin(), username.end());
+    short finalX = player->_x;
+    short finalY = player->_y;
+    uint8_t level = player->_level;
+    uint32_t exp = player->_exp;
+
+    GDBManager->PostTask([wUsername, finalX, finalY, level, exp](DBConnection& db)
+        {
+            if (UserDBHelper::SaveUserInfo(db, wUsername, finalX, finalY, level, exp))
+            {
+                std::cout << "[DB] 캐릭터 정보 저장 완료: " << (char*)wUsername.c_str() << "\n";
+            }
+            else
+            {
+                std::cerr << "[DB] 캐릭터 정보 저장 실패!\n";
+            }
+        });
+
+    GSectorManager->RemovePlayer(player);
+    GPlayerManager->RemovePlayer(player->_id);
+    _owner.reset();
+}
+
 void Session::send_login_fail_packet()
 {
     S2C_LoginResult p;
@@ -210,30 +319,30 @@ void Session::send_login_success_packet()
     DoSend(reinterpret_cast<const char*>(&p));
 }
 
-void Session::send_avatar_info_packet()
+void Session::send_my_avatar_info_packet()
 {
-    std::shared_ptr<Player> owner = _owner.lock();
-
-    if (!owner)
+    auto owner = _owner.lock();
+    if (owner)
     {
-        std::cout << "send_avatar_info_packet 실패: owner가 만료됨\n";
-        return;
+        send_avatar_packet(owner);
     }
+}
+
+void Session::send_avatar_packet(std::shared_ptr<Player> target_player)
+{
+    if (!target_player) return;
 
     S2C_AvatarInfo p{};
     p.size = sizeof(S2C_AvatarInfo);
     p.type = S2C_AVATAR_INFO;
-
-    p.playerId = owner->_id;
-    p.visualId = owner->_visualId;
-
-    p.x = owner->_x;
-    p.y = owner->_y;
-
-    p.hp = owner->_hp;
-    p.max_hp = owner->_maxHp;
-    p.exp = owner->_exp;
-    p.level = owner->_level;
+    p.playerId = target_player->_id;
+    p.visualId = target_player->_visualId;
+    p.x = target_player->_x;
+    p.y = target_player->_y;
+    p.hp = target_player->_hp;
+    p.max_hp = target_player->_maxHp;
+    p.exp = target_player->_exp;
+    p.level = target_player->_level;
 
     DoSend(reinterpret_cast<const char*>(&p));
 }
@@ -296,69 +405,15 @@ void Session::ProcessPacket(char* packet)
     case PACKET_TYPE::C2S_LOGIN:
     {
         C2S_Login* loginPacket = reinterpret_cast<C2S_Login*>(packet);
-        std::string username(loginPacket->username);
-
-        std::wstring wUsername(username.begin(), username.end());
-
-        // logic -> db -> logic
-        GGameLogicThread->PostEvent([self = shared_from_this(), username, wUsername]()
-            {
-                GDBManager->PostTask([self, username, wUsername](DBConnection& db)
-                    {
-                        short dbX = 0;
-                        short dbY = 0;
-                        bool isSuccess = false;
-
-                        if (UserDBHelper::IsUserRegistered(db, wUsername))
-                        {
-                            DB_USER_INFO info = UserDBHelper::ExtractUserInfo(db, wUsername);
-                            dbX = info.x;
-                            dbY = info.y;
-                            isSuccess = true;
-                        }
-                        else
-                        {
-                            if (UserDBHelper::AddUserInfoInDataBase(db, wUsername, 0, 0))
-                            {
-                                dbX = rand() % WORLD_WIDTH;
-                                dbY = rand() % WORLD_HEIGHT;
-                                isSuccess = true;
-                            }
-                            else
-                            {
-                                std::cout << "INSERT 실패\n";
-                            }
-                        }
-
-                        GGameLogicThread->PostEvent([self, username, dbX, dbY, isSuccess]()
-                            {
-                                if (!isSuccess)
-                                {
-                                    self->send_login_fail_packet();
-                                    std::cout << username << " 로그인 실패 (DB 에러)\n";
-                                    return;
-                                }
-
-                                std::shared_ptr<Player> newPlayer = std::make_shared<Player>();
-
-                                newPlayer->InitFromLogin(self->GetId(), username, dbX, dbY, self);
-                                self->_owner = newPlayer;  
-
-                                self->send_login_success_packet();
-
-                                std::cout << username << " 로그인 성공! 좌표: (" << dbX << ", " << dbY << ")\n";
-
-                                self->send_avatar_info_packet();
-
-                                // 여기서 주변 유저 찾아서 AddPlayer 패킷 쏘기!
-                            });
-                    });
-            });
-
+        HandleLoginPacket(loginPacket);
         break;
     }
     case PACKET_TYPE::C2S_MOVE:
+    {
+        C2S_Move* movePacket = reinterpret_cast<C2S_Move*>(packet);
+        HandleMovePacket(movePacket);
         break;
+    }
     case PACKET_TYPE::C2S_CHAT:
         break;
     case PACKET_TYPE::C2S_ATTACK:
@@ -366,6 +421,7 @@ void Session::ProcessPacket(char* packet)
     case PACKET_TYPE::C2S_TELEPORT:
         break;
     case PACKET_TYPE::C2S_LOGOUT:
+
         break;
     default:
         std::cout << "Unknown Packet Type. SessionId: " << _id

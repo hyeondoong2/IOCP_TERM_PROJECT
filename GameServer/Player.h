@@ -13,7 +13,7 @@ public:
         const std::string& name,
         short x,
         short y,
-        std::shared_ptr<Session> session);
+        std::weak_ptr<Session> session);
 
     bool IsInGame() const;
 
@@ -32,7 +32,10 @@ public:
 
     int _lastMoveTime = 0;
 
+    int _sectorX = -1;
+    int _sectorY = -1;
+
     PLAYER_STATE _state = PLAYER_STATE::NONE;
 
-    std::shared_ptr<Session> _session;
+    std::weak_ptr<Session> _session;
 };

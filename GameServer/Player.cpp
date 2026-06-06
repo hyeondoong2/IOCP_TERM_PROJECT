@@ -6,7 +6,7 @@ void Player::InitFromLogin(
     const std::string& name,
     short x,
     short y,
-    std::shared_ptr<Session> session)
+    std::weak_ptr<Session> session)
 {
     _id = id;
     _name = name;

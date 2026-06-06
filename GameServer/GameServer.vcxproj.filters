@@ -13,6 +13,9 @@
     <Filter Include="Player">
       <UniqueIdentifier>{bc9cf8bf-3765-4f6c-bebe-1fd406854be8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Sector">
+      <UniqueIdentifier>{64a3523d-451f-4882-be6b-9684a8a8a762}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="protocol_2026.h" />
@@ -54,6 +57,15 @@
     <ClInclude Include="UserDBHelper.h">
       <Filter>Thread</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerManager.h">
+      <Filter>Player</Filter>
+    </ClInclude>
+    <ClInclude Include="Sector.h">
+      <Filter>Sector</Filter>
+    </ClInclude>
+    <ClInclude Include="SectorManager.h">
+      <Filter>Sector</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp" />
@@ -93,6 +105,15 @@
     </ClCompile>
     <ClCompile Include="UserDBHelper.cpp">
       <Filter>Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerManager.cpp">
+      <Filter>Player</Filter>
+    </ClCompile>
+    <ClCompile Include="Sector.cpp">
+      <Filter>Sector</Filter>
+    </ClCompile>
+    <ClCompile Include="SectorManager.cpp">
+      <Filter>Sector</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

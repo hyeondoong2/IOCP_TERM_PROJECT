@@ -108,15 +108,23 @@ public:
     void Disconnect();
     void DoRecv();
     void DoSend(const char* packet);
+    void Logout();
 
     void OnRecv(DWORD bytes);
     void OnSend(SendOverlapped* sendOver);
 
-    // 게임 로직 스레드에서 호출할 패킷 전송 함수들
+    // login
+    void HandleLoginPacket(C2S_Login* packet);
+    void ProcessLoginDatabase(const std::string& username, const std::wstring& wUsername);
+    void OnLoginResult(const std::string& username, short dbX, short dbY, bool isSuccess);
+
+    // Move
+    void HandleMovePacket(C2S_Move* packet);
+
     void send_login_fail_packet();
     void send_login_success_packet();
-    void send_avatar_info_packet();
-
+    void send_my_avatar_info_packet();
+    void send_avatar_packet(std::shared_ptr<Player> target_player);
 
 private:
     bool PostSend(SendOverlapped* sendOver);

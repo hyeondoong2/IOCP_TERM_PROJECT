@@ -27,7 +27,10 @@
     <ClInclude Include="NetworkManager.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="PlayerManager.h" />
     <ClInclude Include="protocol_2026.h" />
+    <ClInclude Include="Sector.h" />
+    <ClInclude Include="SectorManager.h" />
     <ClInclude Include="Session.h" />
     <ClInclude Include="SessionManager.h" />
     <ClInclude Include="Stat.h" />
@@ -49,6 +52,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="PlayerManager.cpp" />
+    <ClCompile Include="Sector.cpp" />
+    <ClCompile Include="SectorManager.cpp" />
     <ClCompile Include="Session.cpp" />
     <ClCompile Include="SessionManager.cpp" />
     <ClCompile Include="Stat.cpp" />

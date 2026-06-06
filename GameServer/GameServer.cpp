@@ -5,10 +5,25 @@
 #include "GameLogicThread.h"
 #include "Session.h"
 #include "NetworkManager.h"
+#include "DBThread.h"
+
+namespace
+{
+    constexpr size_t DB_CONNECTION_COUNT = 8;
+    const std::wstring DB_CONNECTION_STRING = L"DSN=GameServer_DSN;";
+}
 
 int main()
 {
     NetworkManager::Start();
+
+    // DB ÃÊ±âÈ­
+    if(!GDBManager->Init(DB_CONNECTION_COUNT, DB_CONNECTION_STRING))
+    {
+        std::cerr << "Failed to initialize DB Manager.\n";
+        return -1;
+    }
+
 
     HANDLE hIocp = NetworkManager::GetIocpHandle();
 
@@ -26,7 +41,31 @@ int main()
             });
     }
 
+    // DB Thread
+    std::vector<std::thread> dbThreads;
+    for (size_t i = 0; i < DB_CONNECTION_COUNT; ++i)
+    {
+        dbThreads.emplace_back([]()
+        {
+            GDBManager->Run();
+        });
+    }
+
+    // game logic thread
+    std::thread logicThread([]() { GGameLogicThread->Run(); });
+
     for (auto& th : workerThreads)
+    {
+        if (th.joinable())
+            th.join();
+    }
+
+    GGameLogicThread->Stop();
+    if (logicThread.joinable())
+        logicThread.join();
+
+    GDBManager->Stop();
+    for (auto& th : dbThreads)
     {
         if (th.joinable())
             th.join();

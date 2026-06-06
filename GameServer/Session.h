@@ -44,23 +44,22 @@ public:
     char _recv_buf[BUF_SIZE];
 
 public:
-    // 생성자에서는 일단 세션을 nullptr로...
-    // 세션이 막 만들어지는 시점엔 shared_from_this() 를 사용할 수 없음
+    // 생성자에서는 일단 세션을 nullptr로 둔다.
+    // 세션이 막 만들어지는 시점에는 shared_from_this()를 사용할 수 없다.
     RecvOverlapped() : OverlappedEx(IO_RECV, nullptr)
     {
         _wsabuf.buf = _recv_buf;
         _wsabuf.len = BUF_SIZE;
     }
 
-    // WSARecv 직전에 호출 
-    void ReadyToRecv(std::shared_ptr<Session> session, int prev_remain)
+    // WSARecv 직전에 호출한다.
+    void ReadyToRecv(std::shared_ptr<Session> session, int prevRemain)
     {
-        Reset(); 
-        _session = session; 
+        Reset();
+        _session = session;
 
-   
-        _wsabuf.buf = _recv_buf + prev_remain;
-        _wsabuf.len = BUF_SIZE - prev_remain;
+        _wsabuf.buf = _recv_buf + prevRemain;
+        _wsabuf.len = BUF_SIZE - prevRemain;
     }
 };
 
@@ -71,12 +70,12 @@ public:
     char _send_buf[BUF_SIZE];
 
 public:
-    SendOverlapped(std::shared_ptr<Session> session, char* packet)
+    SendOverlapped(std::shared_ptr<Session> session, const char* packet)
         : OverlappedEx(IO_SEND, session)
     {
-        _wsabuf.len = packet[0];
+        _wsabuf.len = static_cast<unsigned char>(packet[0]);
         _wsabuf.buf = _send_buf;
-        memcpy(_send_buf, packet, packet[0]);
+        memcpy(_send_buf, packet, _wsabuf.len);
     }
 };
 
@@ -86,20 +85,41 @@ class Player;
 class Session : public std::enable_shared_from_this<Session>
 {
 public:
+    int _id = -1;
     SOCKET _socket = INVALID_SOCKET;
     SOCKET_STATE _st = SOCKET_STATE::ST_FREE;
     std::mutex _mutex;
     std::weak_ptr<Player> _owner;
 
     RecvOverlapped _recvOverlapped;
+    std::mutex _sendMutex;
     std::queue<SendOverlapped*> _sendQueue;
+    int _prevRemain = 0;
 
 public:
     Session() = default;
 
     explicit Session(SOCKET socket);
-    ~Session() = default;
+    ~Session();
 
+    void SetId(int id);
+    int GetId() const;
+
+    void Disconnect();
     void DoRecv();
     void DoSend(const char* packet);
+
+    void OnRecv(DWORD bytes);
+    void OnSend(SendOverlapped* sendOver);
+
+    // 게임 로직 스레드에서 호출할 패킷 전송 함수들
+    void send_login_fail_packet();
+    void send_login_success_packet();
+    void send_avatar_info_packet();
+
+
+private:
+    bool PostSend(SendOverlapped* sendOver);
+    void ProcessPacket(char* packet);
 };
+

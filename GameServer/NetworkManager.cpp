@@ -2,9 +2,10 @@
 #include "NetworkManager.h"
 #include "WorkerThread.h"
 #include "Session.h"
+#include "SessionManager.h"
 
-HANDLE g_hIocp = NULL;
-SOCKET g_listenSocket = NULL;
+HANDLE g_hIocp = INVALID_HANDLE_VALUE;
+SOCKET g_listenSocket = INVALID_SOCKET;
 
 void NetworkManager::Init()
 {
@@ -13,8 +14,10 @@ void NetworkManager::Init()
 
     g_listenSocket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 
+    // IOCP 생성
     g_hIocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
 
+    // listen 소켓을 IOCP에 연결 (키는 9999로 임의 설정)
     CreateIoCompletionPort(reinterpret_cast<HANDLE>(g_listenSocket), g_hIocp, 9999, 0);
 }
 
@@ -44,7 +47,7 @@ void NetworkManager::Stop()
         g_listenSocket = INVALID_SOCKET;
     }
 
-    if (g_hIocp != INVALID_HANDLE_VALUE)
+    if (g_hIocp != NULL && g_hIocp != INVALID_HANDLE_VALUE)
     {
         ::CloseHandle(g_hIocp);
         g_hIocp = INVALID_HANDLE_VALUE;
@@ -53,29 +56,76 @@ void NetworkManager::Stop()
     ::WSACleanup();
 }
 
-void NetworkManager::PostAccept()
+void NetworkManager::OnAcceptComplete(AcceptOverlapped* acceptOver, std::shared_ptr<Session> session, bool success)
 {
-    // 1. 앞으로 접속할 손님을 앉힐 '빈 세션'을 미리 생성합니다.
-    std::shared_ptr<Session> new_session = std::make_shared<Session>();
-
-    // 2. 세션의 소켓을 미리 생성해서 넣어둡니다.
-    new_session->_socket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
-    if (new_session->_socket == INVALID_SOCKET)
+    if (acceptOver == nullptr || session == nullptr || success == false)
     {
-        // 소켓 생성 실패 시 그냥 리턴하면 new_session은 자동 소멸됩니다.
+        if (session != nullptr)
+            session->Disconnect();
+
+        delete acceptOver;
+        PostAccept();
         return;
     }
 
-    // 3. AcceptOverlapped를 동적 할당하고, 미리 만든 세션을 뱃속에 쥐어줍니다.
+    const int id = GSessionManager->Add(session);
+    if (id == -1)
+    {
+        std::cout << "SessionManager is full. Accept rejected.\n";
+        session->Disconnect();
+        delete acceptOver;
+        PostAccept();
+        return;
+    }
+
+    ::setsockopt(session->_socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+        reinterpret_cast<char*>(&g_listenSocket), sizeof(g_listenSocket));
+
+    session->SetId(id);
+    session->_st = ST_ALLOC;
+
+    HANDLE result = ::CreateIoCompletionPort(
+        reinterpret_cast<HANDLE>(session->_socket),
+        g_hIocp,
+        static_cast<ULONG_PTR>(id),
+        0);
+
+    if (result == NULL)
+    {
+        std::cout << "CreateIoCompletionPort(client) Error: " << ::GetLastError() << "\n";
+        session->Disconnect();
+        delete acceptOver;
+        PostAccept();
+        return;
+    }
+
+    std::cout << "Client Accepted. SessionId: " << id << "\n";
+
+    session->DoRecv();
+
+    delete acceptOver;
+    PostAccept();
+}
+
+// Accept를 위한 낚시대!
+void NetworkManager::PostAccept()
+{
+    std::shared_ptr<Session> new_session = std::make_shared<Session>();
+
+    new_session->_socket = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+    if (new_session->_socket == INVALID_SOCKET)
+    {
+        return;
+    }
+
     AcceptOverlapped* accept_over = new AcceptOverlapped(new_session);
 
     DWORD bytes = 0;
     int addrSize = sizeof(SOCKADDR_IN);
 
-    // 4. AcceptEx 호출 (listen 소켓과 방금 만든 세션의 소켓을 엮어줍니다)
     BOOL ret = AcceptEx(
         g_listenSocket,
-        new_session->_socket,       // <-- 전역 변수 대신 세션의 소켓 사용!
+        new_session->_socket,
         accept_over->_accept_buf,
         0,
         addrSize + 16,
@@ -89,8 +139,10 @@ void NetworkManager::PostAccept()
         int err = WSAGetLastError();
         if (err != WSA_IO_PENDING)
         {
+            new_session->Disconnect();
             delete accept_over;
             std::cout << "AcceptEx Error: " << err << "\n";
         }
     }
 }
+

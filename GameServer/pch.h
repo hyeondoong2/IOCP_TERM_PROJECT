@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -18,6 +18,7 @@
 #include <queue>
 #include <algorithm>
 #include <ranges>
+#include <string>
 #include <concurrent_priority_queue.h>
 #include <tbb/concurrent_unordered_map.h>
 
@@ -26,10 +27,16 @@
 #include <MSWSock.h>
 #pragma comment(lib, "WS2_32.lib")
 #pragma comment(lib, "MSWSock.lib")
+#pragma comment(lib, "odbc32.lib")
+#include <windows.h>
 
 // GameServer headers
 #include "protocol_2026.h"
 #include "Global.h"
+
+// Database headers
+#include <sql.h>
+#include <sqlext.h>
 
 // Timer 
 enum TIMER_EVENT_TYPE
@@ -67,4 +74,13 @@ enum SOCKET_STATE
     ST_FREE, 
     ST_ALLOC, 
     ST_INGAME 
+};
+
+// Player
+enum class PLAYER_STATE
+{
+    NONE = 0,
+    LOBBY,      // 로비 대기 중
+    IN_GAME,    // 게임 월드 접속 완료
+    DEAD        // 사망 상태 
 };

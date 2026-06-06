@@ -42,6 +42,18 @@
     <ClInclude Include="NetworkManager.h">
       <Filter>Network</Filter>
     </ClInclude>
+    <ClInclude Include="DBThread.h">
+      <Filter>Thread</Filter>
+    </ClInclude>
+    <ClInclude Include="DBConnection.h">
+      <Filter>Thread</Filter>
+    </ClInclude>
+    <ClInclude Include="DBConnectionPool.h">
+      <Filter>Thread</Filter>
+    </ClInclude>
+    <ClInclude Include="UserDBHelper.h">
+      <Filter>Thread</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp" />
@@ -70,6 +82,18 @@
       <Filter>Network</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="DBThread.cpp">
+      <Filter>Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="DBConnection.cpp">
+      <Filter>Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="DBConnectionPool.cpp">
+      <Filter>Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="UserDBHelper.cpp">
+      <Filter>Thread</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

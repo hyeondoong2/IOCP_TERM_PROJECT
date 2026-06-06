@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "GameLogicThread.h"
 
+std::shared_ptr<GameLogicThread> GGameLogicThread = std::make_shared<GameLogicThread>();
+
 void GameLogicThread::PostEvent(GameEvent event)
 {
     {

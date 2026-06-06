@@ -1,6 +1,15 @@
 #include "pch.h"
 #include "WorkerThread.h"
 #include "Session.h"
+#include "SessionManager.h"
+#include "NetworkManager.h"
+
+void WorkerThread::Disconnect(int clientId)
+{
+    std::shared_ptr<Session> session = GSessionManager->Find(clientId);
+    if (session != nullptr)
+        session->Disconnect();
+}
 
 void WorkerThread::DoWork(HANDLE hIocp)
 {
@@ -20,58 +29,86 @@ void WorkerThread::DoWork(HANDLE hIocp)
         if (overlapped == nullptr)
             break;
 
-        // TODO:
-        // overlapped를 OverlappedEx로 캐스팅
-        // IO_ACCEPT / IO_RECV / IO_SEND 분기
-        // 1. 메모리 주소가 같으므로 안전하게 캐스팅
         OverlappedEx* exOver = reinterpret_cast<OverlappedEx*>(overlapped);
 
-        // 2. Completion Key를 Session 포인터로 복원
-        // (미리 CreateIoCompletionPort 호출 시 세션 포인터를 key로 넣었다고 가정)
-        Session* session = reinterpret_cast<Session*>(key);
+        std::shared_ptr<Session> session = exOver->_session;
 
-        // 3. 에러 및 연결 종료 처리
-        if (FALSE == result || (bytes == 0 && (exOver->_io_type == IO_RECV || exOver->_io_type == IO_SEND)))
+        // Overlapped 객체가 완료된 뒤에도 Session을 계속 붙잡지 않도록 비움
+        exOver->_session.reset();
+
+        if (FALSE == result)
         {
-            // TODO: 세션 종료 처리 (예: session->Disconnect())
+            const int err = ::WSAGetLastError();
+            std::cout << "GQCS Error: " << err << "\n";
 
-            // Send 객체는 보통 new로 동적 할당하므로 메모리 누수 방지를 위해 해제
-            if (exOver->_io_type == IO_SEND)
-                delete exOver;
+            if (exOver->_io_type == IO_ACCEPT)
+            {
+                NetworkManager::OnAcceptComplete(static_cast<AcceptOverlapped*>(exOver), session, false);
+            }
+            else
+            {
+                if (session != nullptr)
+                    session->Disconnect();
+
+                if (exOver->_io_type == IO_SEND)
+                {
+                    SendOverlapped* sendOver = static_cast<SendOverlapped*>(exOver);
+                    if (session != nullptr)
+                        session->OnSend(sendOver);
+                    else
+                        delete sendOver;
+                }
+            }
 
             continue;
         }
 
-        // 4. IO 타입에 따른 분기 처리
+        if (bytes == 0 && exOver->_io_type == IO_RECV)
+        {
+            if (session != nullptr)
+                session->Disconnect();
+
+            continue;
+        }
+
+        if (bytes == 0 && exOver->_io_type == IO_SEND)
+        {
+            if (session != nullptr)
+            {
+                session->Disconnect();
+                session->OnSend(static_cast<SendOverlapped*>(exOver));
+            }
+            else
+            {
+                delete static_cast<SendOverlapped*>(exOver);
+            }
+
+            continue;
+        }
+
         switch (exOver->_io_type)
         {
         case IO_ACCEPT:
         {
             AcceptOverlapped* acceptOver = static_cast<AcceptOverlapped*>(exOver);
-            // TODO: 새 클라이언트 연결 처리
-            // Session 매니저에 새 세션 등록, 새 소켓 생성, 바인딩 후 첫 Recv 걸기
-            // 다시 PostAcceptRequest() 호출
-
-
-            std::cout << "클라이언트 접속" << std::endl;
+            NetworkManager::OnAcceptComplete(acceptOver, session, true);
             break;
         }
         case IO_RECV:
         {
-            RecvOverlapped* recvOver = static_cast<RecvOverlapped*>(exOver);
-            // TODO: 수신된 데이터(bytes)만큼 패킷 처리 로직 (패킷 조립 및 라우팅)
-            // session->OnRecv(recvOver->_recv_buf, bytes);
-
-            // 처리가 끝나면 다시 비동기 Recv 걸기
-            // recvOver->ReadyToRecv();
-            // WSARecv(...);
+            if (session != nullptr)
+                session->OnRecv(bytes);
             break;
         }
         case IO_SEND:
         {
             SendOverlapped* sendOver = static_cast<SendOverlapped*>(exOver);
-            // Send는 운영체제가 복사를 마쳤으므로 객체만 정리해주면 됨
-            delete sendOver;
+
+            if (session != nullptr)
+                session->OnSend(sendOver);
+            else
+                delete sendOver;
+
             break;
         }
         default:
@@ -79,3 +116,4 @@ void WorkerThread::DoWork(HANDLE hIocp)
         }
     }
 }
+

@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DBConnection.h" />
+    <ClInclude Include="DBConnectionPool.h" />
+    <ClInclude Include="DBThread.h" />
     <ClInclude Include="GameLogicThread.h" />
     <ClInclude Include="Global.h" />
     <ClInclude Include="NetworkManager.h" />
@@ -29,9 +32,13 @@
     <ClInclude Include="SessionManager.h" />
     <ClInclude Include="Stat.h" />
     <ClInclude Include="TimerThread.h" />
+    <ClInclude Include="UserDBHelper.h" />
     <ClInclude Include="WorkerThread.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DBConnection.cpp" />
+    <ClCompile Include="DBConnectionPool.cpp" />
+    <ClCompile Include="DBThread.cpp" />
     <ClCompile Include="GameLogicThread.cpp" />
     <ClCompile Include="GameServer.cpp" />
     <ClCompile Include="NetworkManager.cpp" />
@@ -46,6 +53,7 @@
     <ClCompile Include="SessionManager.cpp" />
     <ClCompile Include="Stat.cpp" />
     <ClCompile Include="TimerThread.cpp" />
+    <ClCompile Include="UserDBHelper.cpp" />
     <ClCompile Include="WorkerThread.cpp" />
   </ItemGroup>
   <ItemGroup>

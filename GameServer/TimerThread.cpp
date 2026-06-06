@@ -29,7 +29,7 @@ void TimerThread::RunTimer()
     // wait 함수가 인자로 unique lock을 받음
     std::unique_lock lock(_mutex);
 
-    while (true)
+    while (_running)
     {
         // 큐에 알람이 들어올 때까지 대기
         // timer queue가 empty가 아닐 때까지 재우기
@@ -65,6 +65,12 @@ void TimerThread::RunTimer()
             lock.lock();
         }
     }
+}
+
+void TimerThread::Stop()
+{
+    _running = false; 
+    _cv.notify_all(); 
 }
 
 void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)

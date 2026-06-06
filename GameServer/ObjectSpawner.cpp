@@ -4,6 +4,8 @@
 #include "ObjectManager.h"
 #include "SectorManager.h"
 
+std::shared_ptr<ObjectSpawner> GObjectSpawner = std::make_shared<ObjectSpawner>();
+
 void ObjectSpawner::Init()
 {
     std::cout << "NPC 스포닝 시작 (" << NUM_NPCS << " 마리)..." << std::endl;

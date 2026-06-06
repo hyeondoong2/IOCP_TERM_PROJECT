@@ -16,3 +16,5 @@ public:
     // Lua 스크립트 기반 생성 
     static void SpawnFromLua(std::string type, int x, int y);
 };
+
+extern std::shared_ptr<ObjectSpawner> GObjectSpawner;

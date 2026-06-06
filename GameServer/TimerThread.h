@@ -12,6 +12,7 @@ public:
 
     void RegisterEvent(TIMER_EVENT timerEvent);
     void RunTimer();
+    void Stop();
 
     // 클래스 자체에 딱 하나 존재하는 함수라 static 선언..
     static TimePoint Now() noexcept
@@ -38,6 +39,7 @@ private:
     std::priority_queue<TIMER_EVENT, std::vector<TIMER_EVENT>, EventComparer> _timer_queue;
     std::mutex _mutex;
     std::condition_variable _cv;
+    std::atomic<bool> _running = true;
 
     uint64_t _sequence = 0;
 };

@@ -6,6 +6,7 @@
 #include "Session.h"
 #include "NetworkManager.h"
 #include "DBThread.h"
+#include "ObjectSpawner.h"
 
 namespace
 {
@@ -24,6 +25,7 @@ int main()
         return -1;
     }
 
+    GObjectSpawner->Init();
 
     HANDLE hIocp = NetworkManager::GetIocpHandle();
 
@@ -63,9 +65,15 @@ int main()
             th.join();
     }
 
+    NetworkManager::Stop();
+
     GGameLogicThread->Stop();
     if (logicThread.joinable())
         logicThread.join();
+
+    GTimerThread->Stop();
+    if (timerThread.joinable())
+        timerThread.join();
 
     GDBManager->Stop();
     for (auto& th : dbThreads)
@@ -74,9 +82,5 @@ int main()
             th.join();
     }
 
-    //GTimerThread->Stop();
-    if (timerThread.joinable())
-        timerThread.join();
 
-    NetworkManager::Stop();
 }

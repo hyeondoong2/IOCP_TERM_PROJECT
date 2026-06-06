@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "TimerThread.h"
 
+std::shared_ptr<TimerThread> GTimerThread = std::make_shared<TimerThread>();
+
 void TimerThread::RegisterEvent(TIMER_EVENT timerEvent)
 {
     bool WakeUp = false;

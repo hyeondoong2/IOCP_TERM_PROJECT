@@ -1,7 +1,8 @@
 #pragma once
 
-class Player;
+class GameObject;
 class Sector;
+class Player;
 
 constexpr int SECTOR_SIZE = 100;
 constexpr int SECTOR_X_COUNT = WORLD_WIDTH / SECTOR_SIZE;
@@ -17,13 +18,15 @@ public:
     int GetSectorX(short x) const;
     int GetSectorY(short y) const;
 
-    void AddPlayer(std::shared_ptr<Player> player);
-    void RemovePlayer(std::shared_ptr<Player> player);
-    void UpdatePlayerSector(std::shared_ptr<Player> player);
-    void BroadcastMove(std::shared_ptr<Player> player);
-    void BroadcastAvatarInfoToNearbyPlayers(std::shared_ptr<Player> sourcePlayer);
-    void SendNearbyPlayersToPlayer(std::shared_ptr<Player> targetPlayer);
-    std::vector<int> GetNearbyPlayerIds(std::shared_ptr<Player> player);
+    void AddObject(std::shared_ptr<GameObject> object);
+    void RemoveObject(std::shared_ptr<GameObject> object);
+    void UpdateObjectSector(std::shared_ptr<GameObject> object);
+
+    void BroadcastMove(std::shared_ptr<GameObject> player);
+    void BroadcastSpawnInfo(std::shared_ptr<GameObject> object);
+    void SendNearbyObjectsToPlayer(std::shared_ptr<Player> player);
+
+    std::vector<int> GetNearbyObjectIds(std::shared_ptr<GameObject> object);
 
 private:
     std::vector<std::vector<Sector>> _sectors;

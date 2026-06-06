@@ -42,3 +42,4 @@ private:
     uint64_t _sequence = 0;
 };
 
+extern std::shared_ptr<TimerThread> GTimerThread;

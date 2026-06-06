@@ -1,0 +1,13 @@
+#pragma once
+#include "GameObject.h"
+
+class NPC : public GameObject
+{
+public:
+    NPC() = default;
+    ~NPC() = default;
+
+    void Init(int id, short x, short y, const std::string& name);
+
+    void RandomMove();
+};

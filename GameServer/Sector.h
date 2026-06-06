@@ -3,21 +3,21 @@
 class Sector
 {
 public:
-    void AddPlayer(int playerId)
+    void AddObject(int objectId)
     {
-        _players.insert(playerId);
+        _objects.insert(objectId);
     }
 
-    void RemovePlayer(int playerId)
+    void RemoveObject(int objectId)
     {
-        _players.erase(playerId);
+        _objects.erase(objectId);
     }
 
-    const std::unordered_set<int>& GetPlayers() const
+    const std::unordered_set<int>& GetObjects() const
     {
-        return _players;
+        return _objects;
     }
 
 private:
-    std::unordered_set<int> _players;
+    std::unordered_set<int> _objects;
 };

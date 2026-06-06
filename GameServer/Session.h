@@ -1,5 +1,7 @@
 #pragma once
 
+#include "GameObject.h"
+
 class Session;
 
 class OverlappedEx
@@ -80,6 +82,7 @@ public:
 };
 
 class Player;
+class GameObject;
 
 // 클래스 내부에서 자기 자신의 shared_ptr를 얻을 수 있도록 enable_shared_from_this 상속
 class Session : public std::enable_shared_from_this<Session>
@@ -125,6 +128,7 @@ public:
     void send_login_success_packet();
     void send_my_avatar_info_packet();
     void send_avatar_packet(std::shared_ptr<Player> target_player);
+    void send_object_spawn_packet(std::shared_ptr<GameObject> obj);
 
 private:
     bool PostSend(SendOverlapped* sendOver);

@@ -5,8 +5,9 @@
 #include "DBThread.h"
 #include "UserDBHelper.h"
 #include "Player.h"
-#include "PlayerManager.h"
+#include "ObjectManager.h"
 #include "SectorManager.h"
+
 
 Session::Session(SOCKET socket)
     : _socket(socket), _st(ST_ALLOC)
@@ -245,9 +246,11 @@ void Session::OnLoginResult(const std::string& username, short dbX, short dbY, b
     send_login_success_packet();
     send_my_avatar_info_packet();
 
-    GPlayerManager->AddPlayer(newPlayer);
-    GSectorManager->BroadcastAvatarInfoToNearbyPlayers(newPlayer);
-    GSectorManager->SendNearbyPlayersToPlayer(newPlayer);
+    GObjectManager->AddObject(newPlayer);
+    GSectorManager->AddObject(newPlayer);
+
+    GSectorManager->BroadcastSpawnInfo(newPlayer);
+    GSectorManager->SendNearbyObjectsToPlayer(newPlayer);
 
     std::cout << username << " 로그인 성공! 좌표: (" << dbX << ", " << dbY << ")\n";
 }
@@ -263,7 +266,7 @@ void Session::HandleMovePacket(C2S_Move* packet)
             player->_y = y;
             player->_lastMoveTime = move_time;
 
-            GSectorManager->UpdatePlayerSector(player);
+            GSectorManager->UpdateObjectSector(player);
             GSectorManager->BroadcastMove(player);
         });
 }
@@ -292,8 +295,8 @@ void Session::Logout()
             }
         });
 
-    GSectorManager->RemovePlayer(player);
-    GPlayerManager->RemovePlayer(player->_id);
+    GSectorManager->RemoveObject(player);
+    GObjectManager->RemoveObject(player->_id);
     _owner.reset();
 }
 
@@ -310,7 +313,7 @@ void Session::send_login_fail_packet()
 
 void Session::send_login_success_packet()
 {
-    S2C_LoginResult p;
+    S2C_LoginResult p{};
     p.size = sizeof(S2C_LoginResult);
     p.type = S2C_LOGIN_RESULT;
     p.success = true;
@@ -343,6 +346,37 @@ void Session::send_avatar_packet(std::shared_ptr<Player> target_player)
     p.max_hp = target_player->_maxHp;
     p.exp = target_player->_exp;
     p.level = target_player->_level;
+
+    DoSend(reinterpret_cast<const char*>(&p));
+}
+
+void Session::send_object_spawn_packet(std::shared_ptr<GameObject> obj)
+{
+    if (!obj) return;
+
+    S2C_AddObject p{};
+    p.size = sizeof(S2C_AddObject);
+    p.type = S2C_ADD_OBJECT;
+    p.object_id = obj->_id;
+
+    p.x = obj->_x;
+    p.y = obj->_y;
+    p.hp = obj->_hp;
+    p.max_hp = obj->_maxHp;
+
+    strncpy_s(p.obj_name, obj->_name.c_str(), MAX_NAME_LEN - 1);
+
+    p.exp = 0;
+    p.level = 0;
+    p.visual_id = 100;
+
+    auto player = std::dynamic_pointer_cast<Player>(obj);
+    if (player)
+    {
+        p.exp = player->_exp;
+        p.level = player->_level;
+        p.visual_id = player->_visualId; 
+    }
 
     DoSend(reinterpret_cast<const char*>(&p));
 }

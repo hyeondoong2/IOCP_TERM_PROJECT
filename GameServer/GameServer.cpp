@@ -54,6 +54,9 @@ int main()
     // game logic thread
     std::thread logicThread([]() { GGameLogicThread->Run(); });
 
+    // timer thread
+    std::thread timerThread([]() { GTimerThread->RunTimer(); });
+
     for (auto& th : workerThreads)
     {
         if (th.joinable())
@@ -70,6 +73,10 @@ int main()
         if (th.joinable())
             th.join();
     }
+
+    //GTimerThread->Stop();
+    if (timerThread.joinable())
+        timerThread.join();
 
     NetworkManager::Stop();
 }

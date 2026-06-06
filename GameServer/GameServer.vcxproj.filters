@@ -16,6 +16,15 @@
     <Filter Include="Sector">
       <UniqueIdentifier>{64a3523d-451f-4882-be6b-9684a8a8a762}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GameObject">
+      <UniqueIdentifier>{088ee11e-4005-4817-bc8c-a2eaf516e03a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NPC">
+      <UniqueIdentifier>{c76570bf-c247-4cd5-b36a-5c0ab214ce41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Monster">
+      <UniqueIdentifier>{920db16c-0cd5-44a8-8f60-786cd51b41d1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="protocol_2026.h" />
@@ -57,14 +66,26 @@
     <ClInclude Include="UserDBHelper.h">
       <Filter>Thread</Filter>
     </ClInclude>
-    <ClInclude Include="PlayerManager.h">
-      <Filter>Player</Filter>
-    </ClInclude>
     <ClInclude Include="Sector.h">
       <Filter>Sector</Filter>
     </ClInclude>
     <ClInclude Include="SectorManager.h">
       <Filter>Sector</Filter>
+    </ClInclude>
+    <ClInclude Include="GameObject.h">
+      <Filter>GameObject</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectManager.h">
+      <Filter>GameObject</Filter>
+    </ClInclude>
+    <ClInclude Include="NPC.h">
+      <Filter>NPC</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectSpawner.h">
+      <Filter>GameObject</Filter>
+    </ClInclude>
+    <ClInclude Include="Monster.h">
+      <Filter>Monster</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -106,14 +127,26 @@
     <ClCompile Include="UserDBHelper.cpp">
       <Filter>Thread</Filter>
     </ClCompile>
-    <ClCompile Include="PlayerManager.cpp">
-      <Filter>Player</Filter>
-    </ClCompile>
     <ClCompile Include="Sector.cpp">
       <Filter>Sector</Filter>
     </ClCompile>
     <ClCompile Include="SectorManager.cpp">
       <Filter>Sector</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObject.cpp">
+      <Filter>GameObject</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjectManager.cpp">
+      <Filter>GameObject</Filter>
+    </ClCompile>
+    <ClCompile Include="NPC.cpp">
+      <Filter>NPC</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjectSpawner.cpp">
+      <Filter>GameObject</Filter>
+    </ClCompile>
+    <ClCompile Include="Monster.cpp">
+      <Filter>Monster</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

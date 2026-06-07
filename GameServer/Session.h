@@ -128,7 +128,8 @@ public:
     void send_login_success_packet();
     void send_my_avatar_info_packet();
     void send_avatar_packet(std::shared_ptr<Player> target_player);
-    void send_object_spawn_packet(std::shared_ptr<GameObject> obj);
+    void send_add_object_packet(std::shared_ptr<GameObject> obj);
+    void send_remove_object_packet(int objectId);
 
 private:
     bool PostSend(SendOverlapped* sendOver);

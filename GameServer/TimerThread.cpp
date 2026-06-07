@@ -1,5 +1,11 @@
 #include "pch.h"
-#include "TimerThread.h"
+#include "TimerThread.h"]
+#include "ObjectManager.h"
+#include "SectorManager.h"
+#include "NPC.h"
+#include "GameLogicThread.h"
+#include "Player.h"
+#include "GameObject.h"
 
 std::shared_ptr<TimerThread> GTimerThread = std::make_shared<TimerThread>();
 
@@ -35,8 +41,12 @@ void TimerThread::RunTimer()
         // timer queue가 empty가 아닐 때까지 재우기
         _cv.wait(lock, [this]()
             {
-                return _timer_queue.empty() == false;
+                return _timer_queue.empty() == false || _running == false;
             });
+
+        if (!_running) break;
+
+        std::cout << "[Timer] 루프 시작! 큐 크기: " << _timer_queue.size() << std::endl;
 
         // 알람이 들어온 경우 처리
         while (!_timer_queue.empty())
@@ -49,7 +59,7 @@ void TimerThread::RunTimer()
             {
                 _cv.wait_until(lock, next_wakeup_time, [this, next_wakeup_time]
                     {
-                        return _timer_queue.empty() || _timer_queue.top().wakeup_time < next_wakeup_time;
+                        return  _running == false || _timer_queue.empty() || _timer_queue.top().wakeup_time < next_wakeup_time;
                     });
                 continue;
             }
@@ -69,8 +79,8 @@ void TimerThread::RunTimer()
 
 void TimerThread::Stop()
 {
-    _running = false; 
-    _cv.notify_all(); 
+    _running = false;
+    _cv.notify_all();
 }
 
 void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
@@ -82,6 +92,53 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
     {
     case TIMER_EVENT_MOVE:
     case TIMER_EVENT_NPC_MOVE:
+    {
+        //std::cout << "move npc timer event processed" << std::endl;
+        GGameLogicThread->PostEvent([obj_id = timerEvent.obj_id]()
+            {
+                auto npc = GObjectManager->FindAs<NPC>(obj_id);
+                if (!npc) return;
+
+                npc->RandomMove();
+                GSectorManager->UpdateObjectSector(npc);
+                GSectorManager->BroadcastMove(npc);
+
+                bool hasNearbyPlayer = false;
+                auto nearbyIds = GSectorManager->GetNearbyObjectIds(npc);
+
+                for (int nearbyId : nearbyIds)
+                {
+                    if (nearbyId != obj_id && nearbyId < MAX_PLAYERS)
+                    {
+                        auto player = GObjectManager->FindAs<Player>(nearbyId);
+                        if (!player) continue;
+
+                        auto baseNpc = std::static_pointer_cast<GameObject>(npc);
+                        auto basePlayer = std::static_pointer_cast<GameObject>(player);
+
+                        if (GSectorManager->CanSee(baseNpc, basePlayer))
+                        {
+                            hasNearbyPlayer = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasNearbyPlayer)
+                {
+                    TIMER_EVENT nextEvent;
+                    nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
+                    nextEvent.obj_id = obj_id;
+                    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(1000);
+                    GTimerThread->RegisterEvent(nextEvent);
+                }
+                else
+                {
+                    npc->_active_npc = false;
+                }
+            });
+        break;
+    }
     default:
         break;
     }

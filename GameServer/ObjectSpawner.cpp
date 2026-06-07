@@ -3,6 +3,7 @@
 #include "NPC.h"
 #include "ObjectManager.h"
 #include "SectorManager.h"
+#include "TimerThread.h"
 
 std::shared_ptr<ObjectSpawner> GObjectSpawner = std::make_shared<ObjectSpawner>();
 
@@ -30,6 +31,9 @@ std::shared_ptr<NPC> ObjectSpawner::SpawnNPC(int id, short x, short y, std::stri
     npc->Init(id, x, y, name);
     GObjectManager->AddObject(npc);
     GSectorManager->AddObject(npc);
+
+    GSectorManager->BroadcastSpawnInfo(npc);
+
     return npc;
 }
 

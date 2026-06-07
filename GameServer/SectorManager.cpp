@@ -5,6 +5,8 @@
 #include "ObjectManager.h"
 #include "Session.h"
 #include "Player.h"
+#include "TimerThread.h"
+#include "NPC.h"
 
 std::shared_ptr<SectorManager> GSectorManager = std::make_shared<SectorManager>();
 
@@ -100,6 +102,7 @@ void SectorManager::BroadcastMove(std::shared_ptr<GameObject> player)
         }
     }
 
+    // 플레이어인 경우에만
     for (int nearbyId : GetNearbyObjectIds(player))
     {
         auto nearbyPlayer = GObjectManager->FindAs<Player>(nearbyId);
@@ -115,30 +118,59 @@ void SectorManager::BroadcastMove(std::shared_ptr<GameObject> player)
 
 void SectorManager::BroadcastSpawnInfo(std::shared_ptr<GameObject> object)
 {
+    if (!object) return;
+
+    bool hasNearbyPlayer = false;
+    auto baseObject = std::static_pointer_cast<GameObject>(object);
+
     for (int nearbyId : GetNearbyObjectIds(object))
     {
-        auto nearbyPlayer = GObjectManager->FindAs<Player>(nearbyId);
-        if (nearbyPlayer)
+        if (nearbyId != object->_id && nearbyId < MAX_PLAYERS)
         {
-            if (auto session = nearbyPlayer->_session.lock())
-                session->send_object_spawn_packet(object);
+            auto nearbyPlayer = GObjectManager->FindAs<Player>(nearbyId);
+            if (nearbyPlayer)
+            {
+                auto basePlayer = std::static_pointer_cast<GameObject>(nearbyPlayer);
+
+                if (CanSee(baseObject, basePlayer))
+                {
+                    if (auto session = nearbyPlayer->_session.lock())
+                    {
+                        session->send_add_object_packet(baseObject);
+
+                        hasNearbyPlayer = true;
+                    }
+                }
+            }
         }
+    }
+
+    if (hasNearbyPlayer && object->_id >= MAX_PLAYERS)
+    {
+        auto npc = std::static_pointer_cast<NPC>(object);
+        npc->WakeUp();
     }
 }
 
 void SectorManager::SendNearbyObjectsToPlayer(std::shared_ptr<Player> player)
 {
-    auto session = player->_session.lock();
-    if (!session) return;
+    if (!player) return;
 
-    for (int nearbyId : GetNearbyObjectIds(player))
+    std::unordered_set<int> current_view;
+    auto basePlayer = std::static_pointer_cast<GameObject>(player);
+
+    for (int nearbyId : GetNearbyObjectIds(basePlayer))
     {
-        auto obj = GObjectManager->FindObject(nearbyId);
-        if (obj)
+        if (nearbyId == player->_id) continue;
+
+        auto nearbyObj = GObjectManager->FindAs<GameObject>(nearbyId);
+        if (nearbyObj && CanSee(basePlayer, nearbyObj))
         {
-            session->send_object_spawn_packet(obj);
+            current_view.insert(nearbyId);
         }
     }
+
+    player->UpdateViewList(current_view);
 }
 
 std::vector<int> SectorManager::GetNearbyObjectIds(std::shared_ptr<GameObject> object)
@@ -166,4 +198,14 @@ std::vector<int> SectorManager::GetNearbyObjectIds(std::shared_ptr<GameObject> o
         }
     }
     return result;
+}
+
+bool SectorManager::CanSee(std::shared_ptr<GameObject> from, std::shared_ptr<GameObject> to) const
+{
+    if (!from || !to) return false;
+
+    int dx = std::abs(from->_x - to->_x);
+    int dy = std::abs(from->_y - to->_y);
+
+    return (dx <= VIEW_RANGE) && (dy <= VIEW_RANGE);
 }

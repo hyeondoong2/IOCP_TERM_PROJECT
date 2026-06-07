@@ -265,9 +265,25 @@ void Session::HandleMovePacket(C2S_Move* packet)
             player->_x = x;
             player->_y = y;
             player->_lastMoveTime = move_time;
-
             GSectorManager->UpdateObjectSector(player);
             GSectorManager->BroadcastMove(player);
+
+            // 플레이어 시야 리스트 업데이트
+            std::unordered_set<int> current_view;
+            auto basePlayer = std::static_pointer_cast<GameObject>(player);
+
+            for (int nearbyId : GSectorManager->GetNearbyObjectIds(player))
+            {
+                if (nearbyId == player->_id) continue;
+
+                auto nearbyObj = GObjectManager->FindAs<GameObject>(nearbyId);
+                if (nearbyObj && GSectorManager->CanSee(basePlayer, nearbyObj))
+                {
+                    current_view.insert(nearbyId);
+                }
+            }
+
+            player->UpdateViewList(current_view);
         });
 }
 
@@ -350,7 +366,7 @@ void Session::send_avatar_packet(std::shared_ptr<Player> target_player)
     DoSend(reinterpret_cast<const char*>(&p));
 }
 
-void Session::send_object_spawn_packet(std::shared_ptr<GameObject> obj)
+void Session::send_add_object_packet(std::shared_ptr<GameObject> obj)
 {
     if (!obj) return;
 
@@ -377,6 +393,16 @@ void Session::send_object_spawn_packet(std::shared_ptr<GameObject> obj)
         p.level = player->_level;
         p.visual_id = player->_visualId; 
     }
+
+    DoSend(reinterpret_cast<const char*>(&p));
+}
+
+void Session::send_remove_object_packet(int objectId)
+{
+    S2C_RemoveObject p{};
+    p.size = sizeof(S2C_RemoveObject);
+    p.type = S2C_REMOVE_OBJECT; 
+    p.object_id = objectId;
 
     DoSend(reinterpret_cast<const char*>(&p));
 }

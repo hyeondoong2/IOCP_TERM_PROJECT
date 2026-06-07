@@ -8,6 +8,8 @@ constexpr int SECTOR_SIZE = 100;
 constexpr int SECTOR_X_COUNT = WORLD_WIDTH / SECTOR_SIZE;
 constexpr int SECTOR_Y_COUNT = WORLD_HEIGHT / SECTOR_SIZE;
 
+constexpr int VIEW_RANGE = 10;
+
 class SectorManager
 {
 public:
@@ -27,6 +29,8 @@ public:
     void SendNearbyObjectsToPlayer(std::shared_ptr<Player> player);
 
     std::vector<int> GetNearbyObjectIds(std::shared_ptr<GameObject> object);
+
+    bool CanSee(std::shared_ptr<GameObject> from, std::shared_ptr<GameObject> to) const;
 
 private:
     std::vector<std::vector<Sector>> _sectors;

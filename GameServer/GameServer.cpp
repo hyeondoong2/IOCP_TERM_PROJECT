@@ -25,8 +25,6 @@ int main()
         return -1;
     }
 
-    GObjectSpawner->Init();
-
     HANDLE hIocp = NetworkManager::GetIocpHandle();
 
     // worker thread
@@ -58,6 +56,11 @@ int main()
 
     // timer thread
     std::thread timerThread([]() { GTimerThread->RunTimer(); });
+
+    GGameLogicThread->PostEvent([]()
+        {
+            GObjectSpawner->Init(); // 여기서 NPC 스폰 + 타이머 이벤트 등록!
+        });
 
     for (auto& th : workerThreads)
     {

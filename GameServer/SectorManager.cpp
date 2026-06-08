@@ -82,88 +82,21 @@ void SectorManager::UpdateObjectSector(std::shared_ptr<GameObject> player)
     player->_sectorY = newSectorY;
 }
 
-void SectorManager::BroadcastMove(std::shared_ptr<GameObject> player)
-{
-    if (!player) return;
-
-    S2C_MoveObject movePkt;
-    movePkt.size = sizeof(S2C_MoveObject);
-    movePkt.type = S2C_MOVE_OBJECT;
-    movePkt.object_id = player->_id;
-    movePkt.x = player->_x;
-    movePkt.y = player->_y;
-
-    auto myPlayer = std::dynamic_pointer_cast<Player>(player);
-    if (myPlayer)
-    {
-        if (auto mySession = myPlayer->_session.lock())
-        {
-            mySession->DoSend(reinterpret_cast<const char*>(&movePkt));
-        }
-    }
-
-    // 플레이어인 경우에만
-    for (int nearbyId : GetNearbyObjectIds(player))
-    {
-        auto nearbyPlayer = GObjectManager->FindAs<Player>(nearbyId);
-        if (nearbyPlayer)
-        {
-            if (auto session = nearbyPlayer->_session.lock())
-            {
-                session->DoSend(reinterpret_cast<const char*>(&movePkt));
-            }
-        }
-    }
-}
-
-void SectorManager::BroadcastSpawnInfo(std::shared_ptr<GameObject> object)
-{
-    if (!object) return;
-
-    bool hasNearbyPlayer = false;
-    auto baseObject = std::static_pointer_cast<GameObject>(object);
-
-    for (int nearbyId : GetNearbyObjectIds(object))
-    {
-        if (nearbyId != object->_id && nearbyId < MAX_PLAYERS)
-        {
-            auto nearbyPlayer = GObjectManager->FindAs<Player>(nearbyId);
-            if (nearbyPlayer)
-            {
-                auto basePlayer = std::static_pointer_cast<GameObject>(nearbyPlayer);
-
-                if (CanSee(baseObject, basePlayer))
-                {
-                    if (auto session = nearbyPlayer->_session.lock())
-                    {
-                        session->send_add_object_packet(baseObject);
-
-                        hasNearbyPlayer = true;
-                    }
-                }
-            }
-        }
-    }
-
-    if (hasNearbyPlayer && object->_id >= MAX_PLAYERS)
-    {
-        auto npc = std::static_pointer_cast<NPC>(object);
-        npc->WakeUp();
-    }
-}
 
 void SectorManager::SendNearbyObjectsToPlayer(std::shared_ptr<Player> player)
 {
     if (!player) return;
 
+    // 플레이어 근처에 있는 Object 중 보이는 Object를 플레이어 시야 리스트에 추가
+
     std::unordered_set<int> current_view;
     auto basePlayer = std::static_pointer_cast<GameObject>(player);
 
-    for (int nearbyId : GetNearbyObjectIds(basePlayer))
+    for (auto& nearbyId : GetNearbyObjectIds(basePlayer))
     {
         if (nearbyId == player->_id) continue;
 
-        auto nearbyObj = GObjectManager->FindAs<GameObject>(nearbyId);
+        auto nearbyObj = GObjectManager->FindObject(nearbyId);
         if (nearbyObj && CanSee(basePlayer, nearbyObj))
         {
             current_view.insert(nearbyId);
@@ -173,9 +106,9 @@ void SectorManager::SendNearbyObjectsToPlayer(std::shared_ptr<Player> player)
     player->UpdateViewList(current_view);
 }
 
-std::vector<int> SectorManager::GetNearbyObjectIds(std::shared_ptr<GameObject> object)
+std::unordered_set<int> SectorManager::GetNearbyObjectIds(std::shared_ptr<GameObject> object)
 {
-    std::vector<int> result;
+    std::unordered_set<int> result;
     if (!object) return result;
 
     int centerX = object->_sectorX;
@@ -190,10 +123,10 @@ std::vector<int> SectorManager::GetNearbyObjectIds(std::shared_ptr<GameObject> o
             if (!IsValidSector(x, y)) continue;
 
             const auto& players = _sectors[y][x].GetObjects();
-            for (int playerId : players)
+            for (auto& playerId : players)
             {
                 if (playerId == object->_id) continue;
-                result.push_back(playerId);
+                result.insert(playerId);
             }
         }
     }

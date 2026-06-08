@@ -81,7 +81,7 @@ void Session::DoRecv()
         const int err = ::WSAGetLastError();
         if (err != WSA_IO_PENDING)
         {
-            std::cout << "WSARecv Error: " << err << "\n";
+            //std::cout << "WSARecv Error: " << err << "\n";
             Disconnect();
         }
     }
@@ -243,16 +243,16 @@ void Session::OnLoginResult(const std::string& username, short dbX, short dbY, b
     newPlayer->InitFromLogin(GetId(), username, dbX, dbY, shared_from_this());
     _owner = newPlayer;
 
+    // 나에게만 보냄
     send_login_success_packet();
     send_my_avatar_info_packet();
 
     GObjectManager->AddObject(newPlayer);
     GSectorManager->AddObject(newPlayer);
 
-    GSectorManager->BroadcastSpawnInfo(newPlayer);
     GSectorManager->SendNearbyObjectsToPlayer(newPlayer);
 
-    std::cout << username << " 로그인 성공! 좌표: (" << dbX << ", " << dbY << ")\n";
+    //std::cout << username << " 로그인 성공! 좌표: (" << dbX << ", " << dbY << ")\n";
 }
 
 void Session::HandleMovePacket(C2S_Move* packet)
@@ -266,17 +266,16 @@ void Session::HandleMovePacket(C2S_Move* packet)
             player->_y = y;
             player->_lastMoveTime = move_time;
             GSectorManager->UpdateObjectSector(player);
-            GSectorManager->BroadcastMove(player);
 
             // 플레이어 시야 리스트 업데이트
             std::unordered_set<int> current_view;
             auto basePlayer = std::static_pointer_cast<GameObject>(player);
 
-            for (int nearbyId : GSectorManager->GetNearbyObjectIds(player))
+            for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(player))
             {
                 if (nearbyId == player->_id) continue;
 
-                auto nearbyObj = GObjectManager->FindAs<GameObject>(nearbyId);
+                auto nearbyObj = GObjectManager->FindObject(nearbyId);
                 if (nearbyObj && GSectorManager->CanSee(basePlayer, nearbyObj))
                 {
                     current_view.insert(nearbyId);
@@ -284,6 +283,7 @@ void Session::HandleMovePacket(C2S_Move* packet)
             }
 
             player->UpdateViewList(current_view);
+            player->SendMovePacketToViewers();
         });
 }
 
@@ -303,17 +303,26 @@ void Session::Logout()
         {
             if (UserDBHelper::SaveUserInfo(db, wUsername, finalX, finalY, level, exp))
             {
-                std::cout << "[DB] 캐릭터 정보 저장 완료: " << (char*)wUsername.c_str() << "\n";
+                //std::cout << "[DB] 캐릭터 정보 저장 완료: " << (char*)wUsername.c_str() << "\n";
             }
             else
             {
-                std::cerr << "[DB] 캐릭터 정보 저장 실패!\n";
+                //std::cerr << "[DB] 캐릭터 정보 저장 실패!\n";
             }
         });
 
-    GSectorManager->RemoveObject(player);
-    GObjectManager->RemoveObject(player->_id);
-    _owner.reset();
+    GGameLogicThread->PostEvent([self = shared_from_this()]()
+        {
+            auto player = self->_owner.lock();
+            if (!player) return;
+
+            // 나를 보는 플레이어들에게 나를 지운다고 알림
+            player->UpdateViewList({});
+
+            GSectorManager->RemoveObject(player);
+            GObjectManager->RemoveObject(player->_id);
+            player.reset();
+        });
 }
 
 void Session::send_login_fail_packet()
@@ -391,7 +400,7 @@ void Session::send_add_object_packet(std::shared_ptr<GameObject> obj)
     {
         p.exp = player->_exp;
         p.level = player->_level;
-        p.visual_id = player->_visualId; 
+        p.visual_id = player->_visualId;
     }
 
     DoSend(reinterpret_cast<const char*>(&p));
@@ -401,7 +410,7 @@ void Session::send_remove_object_packet(int objectId)
 {
     S2C_RemoveObject p{};
     p.size = sizeof(S2C_RemoveObject);
-    p.type = S2C_REMOVE_OBJECT; 
+    p.type = S2C_REMOVE_OBJECT;
     p.object_id = objectId;
 
     DoSend(reinterpret_cast<const char*>(&p));

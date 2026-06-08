@@ -29,16 +29,25 @@ void NPC::RandomMove()
     if (nextY >= 0 && nextY < WORLD_HEIGHT) _y = nextY;
 }
 
+void NPC::RemovePlayerFromViewList(int playerId)
+{
+    _viewList.erase(playerId);
+
+    if (_viewList.empty())
+    {
+        _active_npc = false;
+    }
+}
+ 
 void NPC::WakeUp()
 {
-    bool expected = false;
-    if (!_active_npc.compare_exchange_strong(expected, true))
-        return;
+    if (_active_npc) return;
+    _active_npc = true;
 
     TIMER_EVENT nextEvent;
     nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
     nextEvent.obj_id = this->_id;
-    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(100);
+    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(1000);
 
     GTimerThread->RegisterEvent(nextEvent);
 }

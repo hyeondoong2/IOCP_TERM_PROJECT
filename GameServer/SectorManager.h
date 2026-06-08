@@ -10,6 +10,9 @@ constexpr int SECTOR_Y_COUNT = WORLD_HEIGHT / SECTOR_SIZE;
 
 constexpr int VIEW_RANGE = 10;
 
+inline bool IsPlayer(int id) { return id < MAX_PLAYERS; }
+inline bool IsNPC(int id) { return id >= NPC_ID_START; }
+
 class SectorManager
 {
 public:
@@ -24,11 +27,9 @@ public:
     void RemoveObject(std::shared_ptr<GameObject> object);
     void UpdateObjectSector(std::shared_ptr<GameObject> object);
 
-    void BroadcastMove(std::shared_ptr<GameObject> player);
-    void BroadcastSpawnInfo(std::shared_ptr<GameObject> object);
     void SendNearbyObjectsToPlayer(std::shared_ptr<Player> player);
 
-    std::vector<int> GetNearbyObjectIds(std::shared_ptr<GameObject> object);
+    std::unordered_set<int> GetNearbyObjectIds(std::shared_ptr<GameObject> object);
 
     bool CanSee(std::shared_ptr<GameObject> from, std::shared_ptr<GameObject> to) const;
 

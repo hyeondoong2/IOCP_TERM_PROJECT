@@ -1,11 +1,19 @@
 #pragma once
 
-class GameObject
+class Session;
+
+class GameObject : public std::enable_shared_from_this<GameObject>
 {
 public:
     GameObject() = default;
     virtual ~GameObject() = default;
 
+    void UpdateViewList(const std::unordered_set<int>& newViewList);
+    void SendMovePacketToViewers();
+
+    virtual std::shared_ptr<Session> GetSession() { return nullptr; }
+
+public:
     int _id = -1;
     short _x = 0;
     short _y = 0;
@@ -17,4 +25,8 @@ public:
 
     int _sectorX = -1;
     int _sectorY = -1;
+
+    int _lastMoveTime = 0;
+
+    std::unordered_set<int> _viewList;
 };

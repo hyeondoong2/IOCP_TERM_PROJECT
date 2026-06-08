@@ -130,7 +130,7 @@ void DBConnection::Disconnect()
 
 bool DBConnection::Execute(const std::wstring& query)
 {
-    std::wcout << L"DEBUG: Executing Query -> " << query << std::endl;
+    //std::wcout << L"DEBUG: Executing Query -> " << query << std::endl;
 
     if (_hStmt != SQL_NULL_HSTMT)
     {
@@ -151,9 +151,9 @@ bool DBConnection::Execute(const std::wstring& query)
     SQLSMALLINT messageLen;
     ::SQLGetDiagRecW(SQL_HANDLE_STMT, _hStmt, 1, sqlState, &nativeError, message, 256, &messageLen);
 
-    std::wcout << L"----------------------------------------" << std::endl;
-    std::wcout << L"[DB 에러 메시지] " << message << std::endl;
-    std::wcout << L"----------------------------------------" << std::endl;
+    //std::wcout << L"----------------------------------------" << std::endl;
+    //std::wcout << L"[DB 에러 메시지] " << message << std::endl;
+    //std::wcout << L"----------------------------------------" << std::endl;
 
     return false;
 }

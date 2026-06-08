@@ -99,7 +99,7 @@ void NetworkManager::OnAcceptComplete(AcceptOverlapped* acceptOver, std::shared_
         return;
     }
 
-    std::cout << "Client Accepted. SessionId: " << id << "\n";
+    //std::cout << "Client Accepted. SessionId: " << id << "\n";
 
     session->DoRecv();
 

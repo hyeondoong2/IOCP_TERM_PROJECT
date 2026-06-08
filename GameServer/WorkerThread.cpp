@@ -39,7 +39,7 @@ void WorkerThread::DoWork(HANDLE hIocp)
         if (FALSE == result)
         {
             const int err = ::WSAGetLastError();
-            std::cout << "GQCS Error: " << err << "\n";
+            //std::cout << "GQCS Error: " << err << "\n";
 
             if (exOver->_io_type == IO_ACCEPT)
             {

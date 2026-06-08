@@ -32,8 +32,6 @@ std::shared_ptr<NPC> ObjectSpawner::SpawnNPC(int id, short x, short y, std::stri
     GObjectManager->AddObject(npc);
     GSectorManager->AddObject(npc);
 
-    GSectorManager->BroadcastSpawnInfo(npc);
-
     return npc;
 }
 

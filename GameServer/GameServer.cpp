@@ -55,7 +55,7 @@ int main()
     std::thread logicThread([]() { GGameLogicThread->Run(); });
 
     // timer thread
-    //std::thread timerThread([]() { GTimerThread->RunTimer(); });
+    std::thread timerThread([]() { GTimerThread->RunTimer(); });
 
     GGameLogicThread->PostEvent([]()
         {
@@ -74,9 +74,9 @@ int main()
     if (logicThread.joinable())
         logicThread.join();
 
-/*    GTimerThread->Stop();
+    GTimerThread->Stop();
     if (timerThread.joinable())
-        timerThread.join()*/;
+        timerThread.join();
 
     GDBManager->Stop();
     for (auto& th : dbThreads)

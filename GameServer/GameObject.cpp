@@ -30,7 +30,7 @@ void GameObject::UpdateViewList(const std::unordered_set<int>& newViewList)
             }
             else if (mySession && IsNPC(newId))
             {
-                std::cout << "NPC " << obj->_id << "이(가) 플레이어 " << _id << "의 시야에 들어왔습니다.\n";
+                //std::cout << "NPC " << obj->_id << "이(가) 플레이어 " << _id << "의 시야에 들어왔습니다.\n";
                 std::static_pointer_cast<NPC>(obj)->WakeUp();
             }
         }

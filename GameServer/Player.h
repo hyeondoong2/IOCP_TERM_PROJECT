@@ -18,8 +18,10 @@ public:
 
     bool IsInGame() const;
 
-    std::shared_ptr<Session> GetSession() override { return _session.lock(); }
+    std::shared_ptr<Session> GetSession() { return _session.lock(); }
 
+    void SendMovePacketToViewers() override;
+    void UpdateViewList(const std::unordered_set<int>& newViewList);
 public:
     int _visualId = 0;
     unsigned long long _exp = 0;
@@ -27,4 +29,6 @@ public:
 
     PLAYER_STATE _state = PLAYER_STATE::NONE; // state는 Player 전용으로 유지
     std::weak_ptr<Session> _session;
+
+    std::unordered_set<int> _viewList;
 };

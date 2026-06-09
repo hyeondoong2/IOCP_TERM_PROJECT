@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "NPC.h"
 #include "TimerThread.h"
+#include "SectorManager.h"
+#include "SessionManager.h"
+#include "Session.h"
 
 void NPC::Init(int id, short x, short y, const std::string& name)
 {
@@ -29,16 +32,31 @@ void NPC::RandomMove()
     if (nextY >= 0 && nextY < WORLD_HEIGHT) _y = nextY;
 }
 
-void NPC::RemovePlayerFromViewList(int playerId)
+void NPC::SendMovePacketToViewers()
 {
-    _viewList.erase(playerId);
+    S2C_MoveObject movePkt;
+    movePkt.size = sizeof(S2C_MoveObject);
+    movePkt.type = S2C_MOVE_OBJECT;
+    movePkt.object_id = _id;
+    movePkt.x = _x;
+    movePkt.y = _y;
+    movePkt.move_time = _lastMoveTime;
+    //std::cout << _lastMoveTime << std::endl;
 
-    if (_viewList.empty())
+
+    for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(shared_from_this()))
     {
-        _active_npc = false;
+        if (IsPlayer(nearbyId))
+        {
+            auto nearbyPlayer = GSessionManager->Find(nearbyId);
+            if (nearbyPlayer)
+            {
+                nearbyPlayer->DoSend(reinterpret_cast<const char*>(&movePkt));
+            }
+        }
     }
 }
- 
+
 void NPC::WakeUp()
 {
     if (_active_npc) return;

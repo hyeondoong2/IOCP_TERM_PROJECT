@@ -10,8 +10,7 @@ public:
     void Init(int id, short x, short y, const std::string& name);
 
     void RandomMove();
-    void RemovePlayerFromViewList(int playerId);
-
+    void SendMovePacketToViewers() override;
 public:
     bool _active_npc{ false };
 

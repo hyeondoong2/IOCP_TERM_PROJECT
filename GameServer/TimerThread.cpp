@@ -33,14 +33,12 @@ void TimerThread::RegisterEvent(TIMER_EVENT timerEvent)
 
 void TimerThread::RunTimer()
 {
-    // unique_lock의 경우 lock_guard와 달리 lock과 unlock을 자유롭게 할 수 있음
-    // wait 함수가 인자로 unique lock을 받음
     std::unique_lock lock(_mutex);
+    std::vector<TIMER_EVENT> readyEvents;
+    readyEvents.reserve(32);
 
     while (_running)
     {
-        // 큐에 알람이 들어올 때까지 대기
-        // timer queue가 empty가 아닐 때까지 재우기
         _cv.wait(lock, [this]()
             {
                 return !_timer_queue.empty() || !_running;
@@ -48,38 +46,39 @@ void TimerThread::RunTimer()
 
         if (!_running) break;
 
-        std::cout << "[Timer] 루프 시작! 큐 크기: " << _timer_queue.size() << std::endl;
-
-        // 알람이 들어온 경우 처리
         while (!_timer_queue.empty())
         {
             auto now = Now();
             auto next_wakeup_time = _timer_queue.top().wakeup_time;
 
-            // 다음 알람이 아직 깨울 시간이 안된 경우, 깨울 시간까지 대기
             if (next_wakeup_time > now)
             {
                 _cv.wait_until(lock, next_wakeup_time, [this, next_wakeup_time]
                     {
-                        return !_running || _timer_queue.empty() || _timer_queue.top().wakeup_time < next_wakeup_time;
+                        return !_running || _timer_queue.empty() ||
+                            _timer_queue.top().wakeup_time < next_wakeup_time;
                     });
                 continue;
             }
 
-            TIMER_EVENT ready_event = _timer_queue.top();
-            _timer_queue.pop();
+            // 만료된 이벤트 한번에 수집 (lock 잡은 상태)
+            readyEvents.clear();
+            while (!_timer_queue.empty() &&
+                _timer_queue.top().wakeup_time <= now)
+            {
+                readyEvents.push_back(_timer_queue.top());
+                _timer_queue.pop();
+            }
 
+            // lock 해제 후 일괄 처리 
             lock.unlock();
-
-            // 타이머 이벤트 처리
-            ProcessTimerEvent(ready_event);
-
+            for (const TIMER_EVENT& event : readyEvents)
+                ProcessTimerEvent(event);
             lock.lock();
         }
     }
     std::cout << "TimerThread 종료\n";
 }
-
 void TimerThread::Stop()
 {
     _running = false;
@@ -102,34 +101,61 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
                 auto npc = std::static_pointer_cast<NPC>(GObjectManager->FindObject(obj_id));
                 if (!npc) return;
 
+                std::unordered_set<int> oldViewPlayers;
+                for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(npc))
+                {
+                    if (IsPlayer(nearbyId) && GSectorManager->CanSee(npc, GObjectManager->FindObject(nearbyId)))
+                        oldViewPlayers.insert(nearbyId);
+                }
+
                 npc->RandomMove();
                 GSectorManager->UpdateObjectSector(npc);
 
-                // npc 시야 리스트 업데이트
-                // npc는 플레이어만 시야 리스트에 넣어주면 댐
-                std::unordered_set<int> current_view;
-
-                for (int nearbyId : GSectorManager->GetNearbyObjectIds(npc))
+                // 이동 후 보이는 플레이어 목록
+                std::unordered_set<int> newViewPlayers;
+                for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(npc))
                 {
-                    if (nearbyId == npc->_id) continue;
+                    if (IsPlayer(nearbyId) && GSectorManager->CanSee(npc, GObjectManager->FindObject(nearbyId)))
+                        newViewPlayers.insert(nearbyId);
+                }
 
-                    auto nearbyPlayer = std::static_pointer_cast<Player>(GObjectManager->FindObject(nearbyId));
-                    if (nearbyPlayer && GSectorManager->CanSee(npc, nearbyPlayer))
+                // 새로 보이는 플레이어 → add + move 패킷
+                S2C_MoveObject movePkt;
+                movePkt.size = sizeof(S2C_MoveObject);
+                movePkt.type = S2C_MOVE_OBJECT;
+                movePkt.object_id = obj_id;
+                movePkt.x = npc->_x;
+                movePkt.y = npc->_y;
+                movePkt.move_time = npc->_lastMoveTime;
+
+                for (int id : newViewPlayers)
+                {
+                    auto session = GSessionManager->Find(id);
+                    if (!session) continue;
+
+                    if (oldViewPlayers.count(id) == 0)
+                        session->send_add_object_packet(npc); // 새로 시야에 들어옴
+                    else
+                        session->DoSend(reinterpret_cast<const char*>(&movePkt)); // 계속 보임
+                }
+
+                // 시야에서 사라진 플레이어 → remove 패킷
+                for (int id : oldViewPlayers)
+                {
+                    if (newViewPlayers.count(id) == 0)
                     {
-                        current_view.insert(nearbyId);
+                        auto session = GSessionManager->Find(id);
+                        if (session)
+                            session->send_remove_object_packet(obj_id);
                     }
                 }
-                npc->UpdateViewList(current_view);
 
-                npc->SendMovePacketToViewers();
-
-                if (!current_view.empty())
+                if (!newViewPlayers.empty())
                 {
                     TIMER_EVENT nextEvent;
                     nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
                     nextEvent.obj_id = obj_id;
                     nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(1000);
-
                     GTimerThread->RegisterEvent(nextEvent);
                 }
                 else

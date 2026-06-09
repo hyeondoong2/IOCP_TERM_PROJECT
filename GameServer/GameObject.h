@@ -8,10 +8,7 @@ public:
     GameObject() = default;
     virtual ~GameObject() = default;
 
-    void UpdateViewList(const std::unordered_set<int>& newViewList);
-    void SendMovePacketToViewers();
-
-    virtual std::shared_ptr<Session> GetSession() { return nullptr; }
+    virtual void SendMovePacketToViewers();
 
 public:
     int _id = -1;
@@ -27,6 +24,4 @@ public:
     int _sectorY = -1;
 
     int _lastMoveTime = 0;
-
-    std::unordered_set<int> _viewList;
 };

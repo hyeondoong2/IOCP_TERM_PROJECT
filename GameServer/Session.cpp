@@ -416,6 +416,19 @@ void Session::send_remove_object_packet(int objectId)
     DoSend(reinterpret_cast<const char*>(&p));
 }
 
+void Session::send_move_object_packet(std::shared_ptr<GameObject> obj)
+{
+    S2C_MoveObject p{};
+    p.size = sizeof(S2C_MoveObject);
+    p.type = S2C_MOVE_OBJECT;
+    p.object_id = obj->_id;
+    p.x = obj->_x;
+    p.y = obj->_y;
+    p.move_time = obj->_lastMoveTime;
+
+    DoSend(reinterpret_cast<const char*>(&p));
+}
+
 bool Session::PostSend(SendOverlapped* sendOver)
 {
     DWORD sendBytes = 0;
@@ -488,6 +501,7 @@ void Session::ProcessPacket(char* packet)
     case PACKET_TYPE::C2S_ATTACK:
         break;
     case PACKET_TYPE::C2S_TELEPORT:
+        
         break;
     case PACKET_TYPE::C2S_LOGOUT:
 

@@ -69,9 +69,6 @@
     <ClInclude Include="Sector.h">
       <Filter>Sector</Filter>
     </ClInclude>
-    <ClInclude Include="SectorManager.h">
-      <Filter>Sector</Filter>
-    </ClInclude>
     <ClInclude Include="GameObject.h">
       <Filter>GameObject</Filter>
     </ClInclude>
@@ -87,6 +84,9 @@
     <ClInclude Include="Monster.h">
       <Filter>Monster</Filter>
     </ClInclude>
+    <ClInclude Include="SectorManager.h">
+      <Filter>Sector</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp" />
@@ -98,9 +98,6 @@
     </ClCompile>
     <ClCompile Include="GameLogicThread.cpp">
       <Filter>Thread</Filter>
-    </ClCompile>
-    <ClCompile Include="Stat.cpp">
-      <Filter>Stat</Filter>
     </ClCompile>
     <ClCompile Include="Session.cpp">
       <Filter>Network</Filter>
@@ -147,6 +144,9 @@
     </ClCompile>
     <ClCompile Include="Monster.cpp">
       <Filter>Monster</Filter>
+    </ClCompile>
+    <ClCompile Include="Stat.cpp">
+      <Filter>Stat</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

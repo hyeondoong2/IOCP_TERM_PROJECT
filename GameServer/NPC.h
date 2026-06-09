@@ -17,7 +17,5 @@ public:
     void UpdateMove();
 
 private:
-    std::unordered_set<int> GetVisiblePlayers();
-    void BroadcastMoveToPlayers(const std::unordered_set<int>& oldView,
-        const std::unordered_set<int>& newView);
+    bool BroadcastMoveToPlayers(std::shared_ptr<GameObject> self);
 };

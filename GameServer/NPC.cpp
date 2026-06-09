@@ -5,6 +5,7 @@
 #include "SessionManager.h"
 #include "Session.h"
 #include "ObjectManager.h"
+#include "Player.h"
 
 void NPC::Init(int id, short x, short y, const std::string& name)
 {
@@ -48,16 +49,13 @@ void NPC::WakeUp()
 
 void NPC::UpdateMove()
 {
-    auto oldView = GetVisiblePlayers();
-
+    auto self = shared_from_this();
     RandomMove();
-    GSectorManager->UpdateObjectSector(shared_from_this());
+    GSectorManager->UpdateObjectSector(self);
 
-    auto newView = GetVisiblePlayers();
+    bool hasNearbyPlayer = BroadcastMoveToPlayers(self);
 
-    BroadcastMoveToPlayers(oldView, newView);
-
-    if (!newView.empty())
+    if (hasNearbyPlayer)
     {
         TIMER_EVENT nextEvent;
         nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
@@ -71,20 +69,7 @@ void NPC::UpdateMove()
     }
 }
 
-std::unordered_set<int> NPC::GetVisiblePlayers()
-{
-    std::unordered_set<int> result;
-    auto self = shared_from_this();
-    for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(self))
-    {
-        if (IsPlayer(nearbyId) &&
-            GSectorManager->CanSee(self, GObjectManager->FindObject(nearbyId)))
-            result.insert(nearbyId);
-    }
-    return result;
-}
-
-void NPC::BroadcastMoveToPlayers(const std::unordered_set<int>& oldView, const std::unordered_set<int>& newView)
+bool NPC::BroadcastMoveToPlayers(std::shared_ptr<GameObject> self)
 {
     S2C_MoveObject movePkt;
     movePkt.size = sizeof(S2C_MoveObject);
@@ -94,23 +79,35 @@ void NPC::BroadcastMoveToPlayers(const std::unordered_set<int>& oldView, const s
     movePkt.y = _y;
     movePkt.move_time = _lastMoveTime;
 
-    for (int id : newView)
-    {
-        auto session = GSessionManager->Find(id);
-        if (!session) continue;
-        if (oldView.count(id) == 0)
-            session->send_add_object_packet(shared_from_this());
-        else
-            session->DoSend(reinterpret_cast<const char*>(&movePkt));
-    }
+    bool hasNearbyPlayer = false;
 
-    for (int id : oldView)
+    // 섹터 탐색 1회로 add/move/remove 전부 처리
+    for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(self))
     {
-        if (newView.count(id) == 0)
+        if (!IsPlayer(nearbyId)) continue;
+        auto obj = GObjectManager->FindObject(nearbyId);
+        if (!obj) continue;
+
+        auto player = std::static_pointer_cast<Player>(obj);
+        auto session = GSessionManager->Find(nearbyId);
+        bool canSeeNow = GSectorManager->CanSee(self, obj);
+
+        if (canSeeNow)
         {
-            auto session = GSessionManager->Find(id);
-            if (session)
+            hasNearbyPlayer = true;
+            if (!session) continue;
+
+            if (player->IsInViewList(_id))
+                session->DoSend(reinterpret_cast<const char*>(&movePkt));
+            else
+                session->send_add_object_packet(self);
+        }
+        else
+        {
+            if (player->IsInViewList(_id) && session)
                 session->send_remove_object_packet(_id);
         }
     }
+
+    return hasNearbyPlayer;
 }

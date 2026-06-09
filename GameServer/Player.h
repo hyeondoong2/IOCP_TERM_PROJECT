@@ -18,6 +18,11 @@ public:
 
     bool IsInGame() const;
 
+    bool IsInViewList(int id) const
+    {
+        return _viewList.count(id) > 0;
+    }
+
     std::shared_ptr<Session> GetSession() { return _session.lock(); }
 
     void SendMovePacketToViewers();

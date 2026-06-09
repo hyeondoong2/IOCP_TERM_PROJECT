@@ -8,8 +8,6 @@ public:
     GameObject() = default;
     virtual ~GameObject() = default;
 
-    virtual void SendMovePacketToViewers();
-
 public:
     int _id = -1;
     short _x = 0;

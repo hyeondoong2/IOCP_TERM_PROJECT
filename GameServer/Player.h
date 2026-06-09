@@ -20,7 +20,7 @@ public:
 
     std::shared_ptr<Session> GetSession() { return _session.lock(); }
 
-    void SendMovePacketToViewers() override;
+    void SendMovePacketToViewers();
     void UpdateViewList(const std::unordered_set<int>& newViewList);
 public:
     int _visualId = 0;

@@ -71,6 +71,8 @@
     <ClCompile Include="WorkerThread.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="map_data.lua" />
+    <None Include="npc_data.lua" />
     <None Include="packages.config" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

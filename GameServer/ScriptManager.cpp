@@ -8,12 +8,12 @@ void ScriptManager::Init()
     _L = luaL_newstate();
     luaL_openlibs(_L);
 
-    if (luaL_dofile(_L, "scripts/map_data.lua") != LUA_OK)
+    if (luaL_dofile(_L, "map_data.lua") != LUA_OK)
     {
         std::cerr << "map_data.lua 로드 실패: " << lua_tostring(_L, -1) << std::endl;
         return;
     }
-    if (luaL_dofile(_L, "scripts/npc_data.lua") != LUA_OK)
+    if (luaL_dofile(_L, "npc_data.lua") != LUA_OK)
     {
         std::cerr << "npc_data.lua 로드 실패: " << lua_tostring(_L, -1) << std::endl;
         return;

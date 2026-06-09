@@ -7,14 +7,18 @@
 #include "ObjectManager.h"
 #include "Player.h"
 
-void NPC::Init(int id, short x, short y, const std::string& name)
+void NPC::Init(int id, short x, short y, const std::string& name, 
+    MOVE_TYPE moveType, BATTLE_TYPE battleType, int level)
 {
     _id = id;
     _x = x;
     _y = y;
-    _hp = 100; 
+    _hp = 100;
 
     _name = name;
+    _moveType = moveType;
+    _battleType = battleType;
+    _level = level;
 }
 
 void NPC::RandomMove()
@@ -33,6 +37,24 @@ void NPC::RandomMove()
     if (nextX >= 0 && nextX < WORLD_WIDTH) _x = nextX;
     if (nextY >= 0 && nextY < WORLD_HEIGHT) _y = nextY;
 }
+
+void NPC::DoFixedMove()
+{
+}
+
+void NPC::DoRoamingMove()
+{
+}
+
+void NPC::DoAgroMove(int targetId)
+{
+}
+
+int NPC::FindNearbyPlayer(int range)
+{
+    return 0;
+}
+
 
 void NPC::WakeUp()
 {

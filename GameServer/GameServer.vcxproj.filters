@@ -151,5 +151,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="map_data.lua">
+      <Filter>Script</Filter>
+    </None>
+    <None Include="npc_data.lua">
+      <Filter>Script</Filter>
+    </None>
   </ItemGroup>
 </Project>

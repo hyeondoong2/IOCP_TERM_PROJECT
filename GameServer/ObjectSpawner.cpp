@@ -35,15 +35,6 @@ std::shared_ptr<NPC> ObjectSpawner::SpawnNPC(int id, short x, short y, std::stri
     return npc;
 }
 
-//std::shared_ptr<Monster> ObjectSpawner::SpawnMonster(int id, short x, short y, std::string name, int level)
-//{
-//    auto monster = std::make_shared<Monster>();
-//    //monster->Init(id, x, y, name); 
-//    //monster->_level = level;     
-//    GObjectManager->AddObject(monster);
-//    return monster;
-//}
-
 void ObjectSpawner::SpawnFromLua(std::string type, int x, int y)
 {
 }

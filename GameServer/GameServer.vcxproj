@@ -25,7 +25,6 @@
     <ClInclude Include="GameLogicThread.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="Global.h" />
-    <ClInclude Include="Monster.h" />
     <ClInclude Include="NetworkManager.h" />
     <ClInclude Include="NPC.h" />
     <ClInclude Include="ObjectSpawner.h" />
@@ -33,6 +32,7 @@
     <ClInclude Include="Player.h" />
     <ClInclude Include="ObjectManager.h" />
     <ClInclude Include="protocol_2026.h" />
+    <ClInclude Include="ScriptManager.h" />
     <ClInclude Include="Sector.h" />
     <ClInclude Include="SectorManager.h" />
     <ClInclude Include="Session.h" />
@@ -49,7 +49,6 @@
     <ClCompile Include="GameLogicThread.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameServer.cpp" />
-    <ClCompile Include="Monster.cpp" />
     <ClCompile Include="NetworkManager.cpp" />
     <ClCompile Include="NPC.cpp" />
     <ClCompile Include="ObjectSpawner.cpp" />
@@ -61,6 +60,7 @@
     </ClCompile>
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="ObjectManager.cpp" />
+    <ClCompile Include="ScriptManager.cpp" />
     <ClCompile Include="Sector.cpp" />
     <ClCompile Include="SectorManager.cpp" />
     <ClCompile Include="Session.cpp" />

@@ -38,6 +38,10 @@
 #include <sql.h>
 #include <sqlext.h>
 
+// lua
+#include "include/lua.hpp"
+#pragma comment(lib, "lua55.lib")
+
 // Timer 
 enum TIMER_EVENT_TYPE
 {
@@ -84,3 +88,7 @@ enum class PLAYER_STATE
     IN_GAME,    // 게임 월드 접속 완료
     DEAD        // 사망 상태 
 };
+
+// NPC
+enum class MOVE_TYPE { FIXED, ROAMING };
+enum class BATTLE_TYPE { PEACE, AGRO };

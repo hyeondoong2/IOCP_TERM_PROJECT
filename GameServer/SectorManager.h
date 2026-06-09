@@ -8,7 +8,7 @@ constexpr int SECTOR_SIZE = 10;
 constexpr int SECTOR_X_COUNT = WORLD_WIDTH / SECTOR_SIZE;
 constexpr int SECTOR_Y_COUNT = WORLD_HEIGHT / SECTOR_SIZE;
 
-constexpr int VIEW_RANGE = 5;
+constexpr int VIEW_RANGE = 7;
 
 inline bool IsPlayer(int id) { return id < MAX_PLAYERS; }
 inline bool IsNPC(int id) { return id >= NPC_ID_START; }

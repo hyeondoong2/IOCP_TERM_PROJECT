@@ -60,7 +60,7 @@ void NPC::UpdateMove()
         TIMER_EVENT nextEvent;
         nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
         nextEvent.obj_id = _id;
-        nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(1000);
+        nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(NPC_MOVE_INTERVAL);
         GTimerThread->RegisterEvent(nextEvent);
     }
     else

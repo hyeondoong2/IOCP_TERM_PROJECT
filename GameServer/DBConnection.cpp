@@ -98,7 +98,7 @@ bool DBConnection::Connect(const std::wstring& connectionString)
     {
         _connected = true;
         _connectionString = connectionString;
-        std::wcout << L"DBConnection[" << _id << L"] Connected.\n";
+        //std::wcout << L"DBConnection[" << _id << L"] Connected.\n";
         return true;
     }
 

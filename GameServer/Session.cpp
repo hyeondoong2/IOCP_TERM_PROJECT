@@ -7,6 +7,7 @@
 #include "Player.h"
 #include "ObjectManager.h"
 #include "SectorManager.h"
+#include "Collision.h"
 
 
 Session::Session(SOCKET socket)
@@ -219,8 +220,13 @@ void Session::ProcessLoginDatabase(const std::string& username, const std::wstri
             }
             else
             {
-                dbX = rand() % WORLD_WIDTH;
-                dbY = rand() % WORLD_HEIGHT;
+                do
+                {
+                    dbX = rand() % WORLD_WIDTH;
+                    dbY = rand() % WORLD_HEIGHT;
+                }
+                while (isCollision(dbX, dbY));
+
                 isSuccess = UserDBHelper::AddUserInfoInDataBase(db, wUsername, dbX, dbY);
             }
 
@@ -261,6 +267,23 @@ void Session::HandleMovePacket(C2S_Move* packet)
         {
             auto player = self->_owner.lock();
             if (!player) return;
+
+            int distX = std::abs(player->_x - x);
+            int distY = std::abs(player->_y - y);
+
+            // 충돌 방지
+            if (isCollision(x, y) || distX > 1 || distY > 1)
+            {
+                S2C_MoveObject sync_packet;
+                sync_packet.size = sizeof(sync_packet);
+                sync_packet.type = S2C_MOVE_OBJECT;
+                sync_packet.object_id = player->_id; 
+                sync_packet.x = player->_x;         
+                sync_packet.y = player->_y;         
+
+                self->DoSend(reinterpret_cast<const char*>(&sync_packet));
+                return;
+            }
 
             player->_x = x;
             player->_y = y;
@@ -501,7 +524,7 @@ void Session::ProcessPacket(char* packet)
     case PACKET_TYPE::C2S_ATTACK:
         break;
     case PACKET_TYPE::C2S_TELEPORT:
-        
+
         break;
     case PACKET_TYPE::C2S_LOGOUT:
 

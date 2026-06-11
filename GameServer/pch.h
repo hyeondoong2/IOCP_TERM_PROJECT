@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <ranges>
 #include <string>
+#include <fstream>
 #include <concurrent_priority_queue.h>
 #include <tbb/concurrent_unordered_map.h>
 

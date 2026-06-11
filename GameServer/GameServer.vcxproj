@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Collision.h" />
     <ClInclude Include="DBConnection.h" />
     <ClInclude Include="DBConnectionPool.h" />
     <ClInclude Include="DBThread.h" />
@@ -43,6 +44,7 @@
     <ClInclude Include="WorkerThread.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Collision.cpp" />
     <ClCompile Include="DBConnection.cpp" />
     <ClCompile Include="DBConnectionPool.cpp" />
     <ClCompile Include="DBThread.cpp" />

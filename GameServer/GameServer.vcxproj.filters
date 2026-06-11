@@ -87,6 +87,9 @@
     <ClInclude Include="ScriptManager.h">
       <Filter>Script</Filter>
     </ClInclude>
+    <ClInclude Include="Collision.h">
+      <Filter>Area</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp" />
@@ -147,6 +150,9 @@
     </ClCompile>
     <ClCompile Include="ScriptManager.cpp">
       <Filter>Script</Filter>
+    </ClCompile>
+    <ClCompile Include="Collision.cpp">
+      <Filter>Area</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -11,6 +11,14 @@ constexpr int MAX_NAME_LEN = 20;
 constexpr int MAX_CHAT_MSG_LEN = 200;
 constexpr int BUF_SIZE = 1024;
 
+constexpr int NPC_PER_TYPE = 50000;  // 5만마리씩
+
+constexpr int BLUE_SLIME_ID_START = NPC_ID_START;                      // 1000000 ~ 1049999
+constexpr int CHICKEN_ID_START = NPC_ID_START + NPC_PER_TYPE;       // 1050000 ~ 1099999
+constexpr int COW_ID_START = NPC_ID_START + NPC_PER_TYPE * 2;   // 1100000 ~ 1149999
+constexpr int RED_SLIME_ID_START = NPC_ID_START + NPC_PER_TYPE * 3;   // 1150000 ~ 1199999
+
+
 enum PACKET_TYPE { 
 	C2S_LOGIN,			// Client to Server: Login request
 						// 사용자 이름을 포함한 로그인 요청 패킷	

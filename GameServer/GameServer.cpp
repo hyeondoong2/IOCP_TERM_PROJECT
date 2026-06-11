@@ -7,6 +7,7 @@
 #include "NetworkManager.h"
 #include "DBThread.h"
 #include "ObjectSpawner.h"
+#include "Collision.h"
 
 namespace
 {
@@ -17,6 +18,8 @@ namespace
 int main()
 {
     NetworkManager::Start();
+
+    InitCollisionTile();
 
     // DB ÃÊ±âÈ­
     if(!GDBManager->Init(DB_CONNECTION_COUNT, DB_CONNECTION_STRING))

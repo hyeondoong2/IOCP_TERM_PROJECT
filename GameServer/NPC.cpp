@@ -6,6 +6,7 @@
 #include "Session.h"
 #include "ObjectManager.h"
 #include "Player.h"
+#include "Collision.h"
 
 void NPC::Init(int id, short x, short y, const std::string& name, 
     MOVE_TYPE moveType, BATTLE_TYPE battleType, int level)
@@ -44,15 +45,114 @@ void NPC::DoFixedMove()
 
 void NPC::DoRoamingMove()
 {
+    int dir = rand() % 4;
+    short nextX = _x + dx[dir];
+    short nextY = _y + dy[dir];
+
+    if (!isCollision(nextX, nextY))
+    {
+        _x = nextX;
+        _y = nextY;
+    }
 }
 
 void NPC::DoAgroMove(int targetId)
 {
+    auto targetObj = GObjectManager->FindObject(targetId);
+    if (!targetObj) return;
+
+    short destX = targetObj->_x;
+    short destY = targetObj->_y;
+
+    int distSq = (destX - _x) * (destX - _x) + (destY - _y) * (destY - _y);
+    if (distSq <= 1) return;
+
+    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> openList;
+
+    std::unordered_set<int> closedList;
+
+    openList.emplace(_x, _y, 0, std::abs(destX - _x) + std::abs(destY - _y), nullptr);
+
+    int maxSearchDepth = 50;
+    int searchCount = 0;
+
+    Node* bestNode = nullptr;
+    std::vector<Node*> allNodes;
+
+    while (!openList.empty() && searchCount < maxSearchDepth)
+    {
+        Node current = openList.top();
+        openList.pop();
+
+        int currentKey = current.y * WORLD_WIDTH + current.x;
+
+        if (closedList.count(currentKey)) continue; 
+        closedList.insert(currentKey);            
+
+        Node* currentNodePtr = new Node(current);
+        allNodes.push_back(currentNodePtr);
+
+        if ((current.x == destX && current.y == destY) ||
+            (std::abs(current.x - destX) + std::abs(current.y - destY) == 1))
+        {
+            bestNode = currentNodePtr;
+            break;
+        }
+
+        for (int i = 0; i < 4; ++i)
+        {
+            short nx = current.x + dx[i];
+            short ny = current.y + dy[i];
+
+            if (isCollision(nx, ny)) continue;
+
+            int nextKey = ny * WORLD_WIDTH + nx;
+            if (closedList.count(nextKey)) continue;
+
+            int g = current.g + 1;
+            int h = std::abs(destX - nx) + std::abs(destY - ny);
+            openList.emplace(nx, ny, g, h, currentNodePtr);
+        }
+        searchCount++;
+    }
+
+    if (bestNode != nullptr && bestNode->parent != nullptr)
+    {
+        while (bestNode->parent->parent != nullptr)
+        {
+            bestNode = bestNode->parent;
+        }
+
+        _x = bestNode->x;
+        _y = bestNode->y;
+    }
+
+    for (auto node : allNodes) delete node;
 }
 
 int NPC::FindNearbyPlayer(int range)
 {
-    return 0;
+    int targetId = -1;
+    int minDistance = range * range;
+
+    auto self = shared_from_this();
+
+    for (auto& nearbyId : GSectorManager->GetNearbyPlayerIds(self))
+    {
+        if (!IsPlayer(nearbyId)) continue;
+
+        auto obj = GObjectManager->FindObject(nearbyId);
+        if (!obj) continue;
+
+        int distSq = (obj->_x - _x) * (obj->_x - _x) + (obj->_y - _y) * (obj->_y - _y);
+
+        if (distSq <= minDistance)
+        {
+            minDistance = distSq;
+            targetId = nearbyId; 
+        }
+    }
+    return targetId;
 }
 
 
@@ -72,9 +172,32 @@ void NPC::WakeUp()
 void NPC::UpdateMove()
 {
     auto self = shared_from_this();
-    RandomMove();
-    GSectorManager->UpdateObjectSector(self);
 
+    bool hasTarget = false;
+    if (_battleType == BATTLE_TYPE::AGRO)
+    {
+        int targetId = FindNearbyPlayer(5);
+        if (targetId != -1)
+        {
+            DoAgroMove(targetId);
+            hasTarget = true;
+        }
+    }
+
+
+    if (!hasTarget)
+    {
+        if (_moveType == MOVE_TYPE::ROAMING)
+        {
+            DoRoamingMove();
+        }
+        else if (_moveType == MOVE_TYPE::FIXED)
+        {
+            DoFixedMove();
+        }
+    }
+
+    GSectorManager->UpdateObjectSector(self);
     bool hasNearbyPlayer = BroadcastMoveToPlayers(self);
 
     if (hasNearbyPlayer)
@@ -103,8 +226,7 @@ bool NPC::BroadcastMoveToPlayers(std::shared_ptr<GameObject> self)
 
     bool hasNearbyPlayer = false;
 
-    // 섹터 탐색 1회로 add/move/remove 전부 처리
-    for (auto& nearbyId : GSectorManager->GetNearbyObjectIds(self))
+    for (auto& nearbyId : GSectorManager->GetNearbyPlayerIds(self))
     {
         if (!IsPlayer(nearbyId)) continue;
         auto obj = GObjectManager->FindObject(nearbyId);

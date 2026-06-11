@@ -122,7 +122,34 @@ std::unordered_set<int> SectorManager::GetNearbyObjectIds(std::shared_ptr<GameOb
         {
             if (!IsValidSector(x, y)) continue;
 
-            const auto& players = _sectors[y][x].GetObjects();
+            const auto& players = _sectors[y][x].GetObjectIds();
+            for (auto& playerId : players)
+            {
+                if (playerId == object->_id) continue;
+                result.insert(playerId);
+            }
+        }
+    }
+    return result;
+}
+
+std::unordered_set<int> SectorManager::GetNearbyPlayerIds(std::shared_ptr<GameObject> object)
+{
+    std::unordered_set<int> result;
+    if (!object) return result;
+
+    int centerX = object->_sectorX;
+    int centerY = object->_sectorY;
+
+    if (!IsValidSector(centerX, centerY)) return result;
+
+    for (int y = centerY - 1; y <= centerY + 1; ++y)
+    {
+        for (int x = centerX - 1; x <= centerX + 1; ++x)
+        {
+            if (!IsValidSector(x, y)) continue;
+
+            const auto& players = _sectors[y][x].GetPlayerIds();
             for (auto& playerId : players)
             {
                 if (playerId == object->_id) continue;

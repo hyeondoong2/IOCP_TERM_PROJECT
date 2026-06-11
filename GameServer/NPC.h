@@ -1,6 +1,25 @@
 #pragma once
 #include "GameObject.h"
 
+struct Node
+{
+    short x, y;
+    int g, h, f;
+    Node* parent;
+
+    Node(short _x, short _y, int _g, int _h, Node* _p = nullptr)
+        : x(_x), y(_y), g(_g), h(_h), f(_g + _h), parent(_p)
+    {
+    }
+
+    bool operator>(const Node& other) const
+    {
+        return f > other.f;
+    }
+};
+
+const short dx[] = { 0, 0, -1, 1 };
+const short dy[] = { -1, 1, 0, 0 };
 
 class NPC : public GameObject
 {

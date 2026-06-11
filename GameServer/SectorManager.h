@@ -30,6 +30,7 @@ public:
     void SendNearbyObjectsToPlayer(std::shared_ptr<Player> player);
 
     std::unordered_set<int> GetNearbyObjectIds(std::shared_ptr<GameObject> object);
+    std::unordered_set<int> GetNearbyPlayerIds(std::shared_ptr<GameObject> object);
 
     bool CanSee(std::shared_ptr<GameObject> from, std::shared_ptr<GameObject> to) const;
 

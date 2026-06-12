@@ -47,10 +47,12 @@ sf::Texture* g_texBunnyDeath;
 sf::Texture* g_BlueSlimeIdle;
 sf::Texture* g_BlueSlimeAttack;
 sf::Texture* g_BlueSlimeHurt;
+sf::Texture* g_BlueSlimeDeath;
 
 sf::Texture* g_RedSlimeIdle;
 sf::Texture* g_RedSlimeAttack;
 sf::Texture* g_RedSlimeHurt;
+sf::Texture* g_RedSlimeDeath;
 
 
 sf::Texture* g_CowIdle;
@@ -79,7 +81,7 @@ private:
     // --- 애니메이션용 변수 추가 ---
     bool m_isAnimated = false; // 이 객체가 애니메이션을 사용하는가?
     int m_dir = 3;             // 0:위, 1:오른쪽, 2:왼쪽, 3:앞(아래)
-    int m_state = 0;           // 0:Idle, 1:Run, 2:Hurt, 3:Attack
+    int m_state = 0;           // 0:Idle, 1:Run, 2:Hurt, 3:Attack, 4:Death
     int m_currentFrame = 0;    // 현재 프레임 인덱스
     sf::Clock m_animClock;     // 스프라이트 프레임 변경용 타이머
     sf::Clock m_moveClock;     // 이동 상태(Run) 유지용 타이머
@@ -94,6 +96,9 @@ public:
     int m_max_hp;
     int m_exp;
     int m_lv;
+    bool m_isDead = false;
+    bool m_isDeathAnimDone = false;
+
     OBJECT(sf::Texture& t, int x, int y, int x2, int y2)
     {
         m_showing = false;
@@ -160,6 +165,20 @@ public:
         m_attackClock.restart();
     }
 
+    void set_death()
+    {
+        if (!m_isAnimated) return;
+        m_state = 4;
+        m_currentFrame = 0;
+        m_isDead = true;
+        m_isDeathAnimDone = false;
+    }
+
+    bool is_death_animation_finished()
+    {
+        return m_isDead && m_isDeathAnimDone;
+    }
+
     void draw()
     {
         if (false == m_showing) return;
@@ -203,6 +222,7 @@ public:
                 case 1: targetTexture = g_texBunnyRun;    maxFrames = 8; break;
                 case 2: targetTexture = g_texBunnyHurt;   maxFrames = 2; break;
                 case 3: targetTexture = g_texBunnyAttack; maxFrames = 8; break;
+                case 4: targetTexture = g_texBunnyDeath; maxFrames = 12; break;
                 }
             }
             else
@@ -213,6 +233,7 @@ public:
                     {
                     case 2: targetTexture = g_RedSlimeHurt;   maxFrames = 2; break;
                     case 3: targetTexture = g_RedSlimeAttack; maxFrames = 8; break;
+                    case 4: targetTexture = g_RedSlimeDeath; maxFrames = 4; break;
                     default:targetTexture = g_RedSlimeIdle;   maxFrames = 8; break;
                     }
                 }
@@ -234,12 +255,25 @@ public:
                     {
                     case 2: targetTexture = g_BlueSlimeHurt;   maxFrames = 2; break;
                     case 3: targetTexture = g_BlueSlimeAttack; maxFrames = 8; break;
+                    case 4: targetTexture = g_BlueSlimeDeath; maxFrames = 4; break;
                     default:targetTexture = g_BlueSlimeIdle;   maxFrames = 8; break;
                     }
                 }
             }
 
-            m_currentFrame %= maxFrames;
+            if (m_state == 4)
+            {
+                if (m_currentFrame >= maxFrames)
+                {
+                    m_currentFrame = maxFrames - 1;
+                    m_isDeathAnimDone = true;
+                }
+            }
+            else
+            {
+                m_currentFrame %= maxFrames;
+            }
+
             if (targetTexture) m_sprite.setTexture(*targetTexture);
             m_sprite.setTextureRect(sf::IntRect(m_currentFrame * 64, m_dir * 64, 64, 64));
         }
@@ -487,7 +521,7 @@ void client_initialize()
 
     g_loginSprite = new sf::Sprite(*g_loginTexture);
 
-    // player, monster
+    // player -------------------------------------------------------------
     g_texBunnyIdle = new sf::Texture;
     g_texBunnyIdle->loadFromFile("Bunny_Idle.png");
     g_texBunnyIdle->setSmooth(false);
@@ -508,7 +542,7 @@ void client_initialize()
     g_texBunnyDeath->loadFromFile("Bunny_Death.png");
     g_texBunnyDeath->setSmooth(false);
 
-
+    // blue slime -------------------------------------------------------------
     g_BlueSlimeIdle = new sf::Texture;
     g_BlueSlimeIdle->loadFromFile("Blue_Slime_Sprites/Slime_Idle.png");
     g_BlueSlimeIdle->setSmooth(false);
@@ -521,6 +555,11 @@ void client_initialize()
     g_BlueSlimeHurt->loadFromFile("Blue_Slime_Sprites/Slime_Hurt.png");
     g_BlueSlimeHurt->setSmooth(false);
 
+    g_BlueSlimeDeath = new sf::Texture;
+    g_BlueSlimeDeath->loadFromFile("Blue_Slime_Sprites/Slime_Death.png");
+    g_BlueSlimeDeath->setSmooth(false);
+
+    // red slime -------------------------------------------------------------
     g_RedSlimeIdle = new sf::Texture;
     g_RedSlimeIdle->loadFromFile("Red_Slime_Sprites/Red_Slime_Idle.png");
     g_RedSlimeIdle->setSmooth(false);
@@ -532,6 +571,10 @@ void client_initialize()
     g_RedSlimeHurt = new sf::Texture;
     g_RedSlimeHurt->loadFromFile("Red_Slime_Sprites/Red_Slime_Hurt.png");
     g_RedSlimeHurt->setSmooth(false);
+
+    g_RedSlimeDeath = new sf::Texture;
+    g_RedSlimeDeath->loadFromFile("Red_Slime_Sprites/Red_Slime_Death.png");
+    g_RedSlimeDeath->setSmooth(false);
 
     g_CowIdle = new sf::Texture;
     g_CowIdle->loadFromFile("COW/Cow_Idle.png");
@@ -565,8 +608,8 @@ void client_initialize()
     LoadObstacleLayer1("map_obstacle.csv");
     LoadObstacleLayer2("map_obstacle2.csv");
 
-    avatar = OBJECT{ *g_texBunnyIdle, 0, 192, 64, 64 }; // 초기 위치(앞을 보는 방향)
-    avatar.set_animated(true); // 애니메이션 적용 켜기
+    avatar = OBJECT{ *g_texBunnyIdle, 0, 192, 64, 64 }; 
+    avatar.set_animated(true); 
     avatar.move(4, 4);
 }
 
@@ -607,8 +650,8 @@ void ProcessPacket(char* ptr)
 
         UpdateStatUI(avatar.name, avatar.m_lv, avatar.m_exp, avatar.m_hp, avatar.m_max_hp);
         avatar.show();
-    }
     break;
+    }
 
     case S2C_ADD_OBJECT:
     {
@@ -738,12 +781,23 @@ void ProcessPacket(char* ptr)
             players[other_id].set_attack();
         break;
     }
+    case S2C_DIE_OBJECT:
+    {
+        S2C_DieObject* my_packet = reinterpret_cast<S2C_DieObject*>(ptr);
+        int other_id = my_packet->object_id;
+        if (other_id == g_myid)
+            avatar.set_death();
+        else if (players.count(other_id))
+            players[other_id].set_death();
+        break;
+    }
     case S2C_STATUS_CHANGE:
     {
         S2C_StatusChange* my_packet = reinterpret_cast<S2C_StatusChange*>(ptr);
         int other_id = my_packet->object_id;
         if (other_id == g_myid)
         {
+            if (avatar.m_isDead) avatar.m_isDead = false;
             avatar.m_exp = my_packet->exp;
             avatar.m_hp = my_packet->hp;
             avatar.m_lv = my_packet->level;
@@ -874,14 +928,35 @@ void client_main()
         }
     }
 
+    if (avatar.m_isDead && avatar.is_death_animation_finished())
+    {
+        avatar.hide(); 
+    }
+
     avatar.draw();
-    for (auto& pl : players) pl.second.draw();
+
+    for (auto it = players.begin(); it != players.end(); )
+    {
+        it->second.draw();
+
+        if (it->second.is_death_animation_finished())
+        {
+            it = players.erase(it); // 완전히 죽었으면 맵에서 지움
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // position
     sf::Text text;
     text.setFont(g_font);
     char buf[100];
     sprintf_s(buf, "(%d, %d)", avatar.m_x, avatar.m_y);
     text.setString(buf);
     text.setPosition(WINDOW_WIDTH - 120.f, 20.f);
+
     g_window->draw(text);
 }
 
@@ -969,6 +1044,8 @@ int main()
             {
                 if (event.type == sf::Event::KeyPressed)
                 {
+                    if (avatar.m_isDead) continue;
+
                     int move_x = 0;
                     int move_y = 0;
                     switch (event.key.code)

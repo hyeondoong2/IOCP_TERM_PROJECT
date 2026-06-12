@@ -29,12 +29,15 @@ public:
     void UpdateViewList(const std::unordered_set<int>& newViewList);
 
     void OnDamaged(int attackerId, int damage) override;
+    void OnDeath(int attackerId) override;
+    void Respawn() override;
+    void GetExp(int exp);
+
 public:
     int _visualId = 0;
     unsigned long long _exp = 0;
     unsigned char _level = 1;
 
-    PLAYER_STATE _state = PLAYER_STATE::NONE; // state는 Player 전용으로 유지
     std::weak_ptr<Session> _session;
 
     std::unordered_set<int> _viewList;

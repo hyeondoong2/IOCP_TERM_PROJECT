@@ -9,10 +9,14 @@ public:
     virtual ~GameObject() = default;
 
     virtual void OnDamaged(int attackerId, int damage) {}
+    virtual void OnDeath(int attackerId) {}
+    virtual void Respawn() {}
 public:
     int _id = -1;
     short _x = 0;
     short _y = 0;
+    short _originX = 0;
+    short _originY = 0;
 
     std::string _name;
 
@@ -23,4 +27,6 @@ public:
     int _sectorY = -1;
 
     int _lastMoveTime = 0;
+
+    OBJECT_STATE _state = OBJECT_STATE::NONE;
 };

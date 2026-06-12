@@ -39,8 +39,9 @@ public:
     bool IsInAttackRange(int targetId, int range = 2);
 
     void OnDamaged(int attackerId, int damage) override;
+    void OnDeath(int attackerId) override;
+    void Respawn() override;
 
-    // °æÇèÄ¡
     int GetKillExp() const
     {
         int base = _level * _level * 2;
@@ -54,8 +55,6 @@ public:
     BATTLE_TYPE _battleType{ BATTLE_TYPE::PEACE };
     int         _level{ 1 };
     int         _damage{ 0 };
-    short       _originX{ 0 }; 
-    short       _originY{ 0 };
 
 private:
     void DoFixedMove();

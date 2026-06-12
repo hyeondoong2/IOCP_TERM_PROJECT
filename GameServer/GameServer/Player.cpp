@@ -6,6 +6,7 @@
 #include "Session.h"
 #include "SectorManager.h"
 #include "SessionManager.h"
+#include "TimerThread.h"
 
 void Player::InitFromLogin(
     int id,
@@ -18,15 +19,17 @@ void Player::InitFromLogin(
     _name = name;
     _x = x;
     _y = y;
+    _originX = x;
+    _originY = y;
 
-    _state = PLAYER_STATE::IN_GAME;
+    _state = OBJECT_STATE::IN_GAME;
 
     _session = session;
 }
 
 bool Player::IsInGame() const
 {
-    return _state == PLAYER_STATE::IN_GAME;
+    return _state == OBJECT_STATE::IN_GAME;
 }
 
 void Player::SendMovePacketToViewers()
@@ -117,7 +120,10 @@ void Player::UpdateViewList(const std::unordered_set<int>& newViewList)
 
 void Player::OnDamaged(int attackerId, int damage)
 {
+    if (_state == OBJECT_STATE::DEAD) return;
+
     _hp -= damage;
+    if (_hp < 0) _hp = 0;
 
     auto mySession = GetSession();
 
@@ -135,21 +141,97 @@ void Player::OnDamaged(int attackerId, int damage)
         mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
     }
 
-    S2C_HitObject hitPkt{};
-    hitPkt.size = sizeof(S2C_HitObject);
-    hitPkt.type = S2C_HIT_OBJECT;
-    hitPkt.object_id = _id;
+    if (_hp <= 0)
+    {
+        OnDeath(attackerId);
+    }
+    else
+    {
+        S2C_HitObject hitPkt{};
+        hitPkt.size = sizeof(S2C_HitObject);
+        hitPkt.type = S2C_HIT_OBJECT;
+        hitPkt.object_id = _id;
+
+        if (mySession)
+        {
+            mySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
+        }
+
+        for (auto& nearbyId : _viewList)
+        {
+            if (!IsPlayer(nearbyId)) continue;
+            auto nearbySession = GSessionManager->Find(nearbyId);
+            if (nearbySession)
+                nearbySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
+        }
+    }
+}
+
+void Player::OnDeath(int attackerId)
+{
+    if (_state == OBJECT_STATE::DEAD) return;
+
+    auto mySession = GetSession();
+
+    _hp = 0;
+    _state = OBJECT_STATE::DEAD;
+
+    S2C_DieObject diePkt{};
+    diePkt.size = sizeof(S2C_DieObject);
+    diePkt.type = S2C_DIE_OBJECT;
+    diePkt.object_id = _id;
 
     if (mySession)
-    {
-        mySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
-    }
+        mySession->DoSend(reinterpret_cast<const char*>(&diePkt));
 
     for (auto& nearbyId : _viewList)
     {
         if (!IsPlayer(nearbyId)) continue;
-        auto nearbySession = GSessionManager->Find(nearbyId);
-        if (nearbySession)
-            nearbySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
+        auto session = GSessionManager->Find(nearbyId);
+        if (session)
+            session->DoSend(reinterpret_cast<const char*>(&diePkt));
     }
+
+    TIMER_EVENT respawnEvent;
+    respawnEvent.event_type = TIMER_EVENT_PLAYER_RESPAWN;
+    respawnEvent.obj_id = _id;
+    respawnEvent.wakeup_time = TimerThread::Now() + std::chrono::seconds(3);
+    GTimerThread->RegisterEvent(respawnEvent);
+}
+
+void Player::Respawn()
+{
+    _hp = _maxHp;
+    _exp = _exp / 2;
+    _state = OBJECT_STATE::IN_GAME;
+
+    _x = _originX;
+    _y = _originY;
+
+    _viewList.clear();
+
+    auto selfPlayer = std::static_pointer_cast<Player>(shared_from_this());
+
+    GSectorManager->UpdateObjectSector(selfPlayer);
+    GSectorManager->SendNearbyObjectsToPlayer(selfPlayer);
+
+    auto mySession = GetSession();
+
+    S2C_StatusChange statusPkt{};
+    statusPkt.size = sizeof(S2C_StatusChange);
+    statusPkt.type = S2C_STATUS_CHANGE;
+    statusPkt.object_id = _id;
+    statusPkt.hp = _hp;
+    statusPkt.max_hp = _maxHp;
+    statusPkt.level = _level;
+    statusPkt.exp = _exp;
+    if (mySession)
+        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
+
+    if (mySession)
+        mySession->send_add_object_packet(shared_from_this());
+}
+
+void Player::GetExp(int exp)
+{
 }

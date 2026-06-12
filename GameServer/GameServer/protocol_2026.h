@@ -141,6 +141,20 @@ struct S2C_HitObject
 	int object_id;
 };
 
+struct S2C_DieObject
+{
+	unsigned char size;
+	PACKET_TYPE   type;
+	int object_id;
+};
+
+struct S2C_RespawnObject
+{
+	unsigned char size;
+	PACKET_TYPE   type;
+	int object_id;
+};
+
 struct S2C_AttackObject
 {
 	unsigned char size;

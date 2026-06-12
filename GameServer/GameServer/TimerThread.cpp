@@ -115,6 +115,27 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             });
         break;
     }
+    case TIMER_EVENT_NPC_RESPAWN:
+    {
+        GGameLogicThread->PostEvent([obj_id = timerEvent.obj_id]()
+            {
+                auto npc = std::static_pointer_cast<NPC>(GObjectManager->FindObject(obj_id));
+                if (!npc) return;
+                npc->Respawn();
+            });
+        break;
+    }
+
+    case TIMER_EVENT_PLAYER_RESPAWN:
+    {
+        GGameLogicThread->PostEvent([obj_id = timerEvent.obj_id]()
+            {
+                auto player = std::static_pointer_cast<Player>(GObjectManager->FindObject(obj_id));
+                if (!player) return;
+                player->Respawn();
+            });
+        break;
+    }
     default:
         break;
     }

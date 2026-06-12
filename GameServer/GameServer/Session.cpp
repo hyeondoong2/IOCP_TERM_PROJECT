@@ -201,6 +201,14 @@ void Session::HandleLoginPacket(C2S_Login* packet)
 
     GGameLogicThread->PostEvent([self = shared_from_this(), username, wUsername]()
         {
+            bool isAlreadyPlaying = false;
+
+            if (GObjectManager->IsPlayerNameInUse(username))
+            {
+                self->send_login_fail_packet();
+                return; 
+            }
+
             self->ProcessLoginDatabase(username, wUsername);
         });
 }
@@ -330,6 +338,10 @@ void Session::Logout()
             GObjectManager->RemoveObject(player->_id);
             player.reset();
         });
+}
+
+void Session::HandleAttackPacket(C2S_Attack* packet)
+{
 }
 
 void Session::send_login_fail_packet()
@@ -506,7 +518,11 @@ void Session::ProcessPacket(char* packet)
     case PACKET_TYPE::C2S_CHAT:
         break;
     case PACKET_TYPE::C2S_ATTACK:
+    {
+        C2S_Attack* attackPacket = reinterpret_cast<C2S_Attack*>(packet);
+        HandleAttackPacket(attackPacket);
         break;
+    }
     case PACKET_TYPE::C2S_TELEPORT:
 
         break;

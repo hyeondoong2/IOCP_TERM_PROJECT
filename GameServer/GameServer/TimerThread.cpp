@@ -104,6 +104,18 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             });
         break;
     }
+
+    case TIMER_EVENT_PLAYER_HEAL:
+    {
+        GGameLogicThread->PostEvent([obj_id = timerEvent.obj_id]()
+            {
+                auto player = std::static_pointer_cast<Player>(GObjectManager->FindObject(obj_id));
+                if (!player) return;
+               
+            });
+        break;
+    }
+
     case TIMER_EVENT_NPC_ATTACK:
     {
         GGameLogicThread->PostEvent([obj_id, target_id]()
@@ -115,6 +127,7 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             });
         break;
     }
+
     case TIMER_EVENT_NPC_RESPAWN:
     {
         GGameLogicThread->PostEvent([obj_id = timerEvent.obj_id]()
@@ -136,6 +149,8 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             });
         break;
     }
+
+   
     default:
         break;
     }

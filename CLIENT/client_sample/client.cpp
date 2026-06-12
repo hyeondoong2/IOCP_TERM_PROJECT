@@ -634,7 +634,22 @@ void ProcessPacket(char* ptr)
     static bool first_time = true;
     switch (ptr[1])
     {
-    case S2C_LOGIN_RESULT: break;
+    case S2C_LOGIN_RESULT: 
+    {
+        S2C_LoginResult* packet = reinterpret_cast<S2C_LoginResult*>(ptr);
+        if (!packet->success)
+        {
+            std::cout << "로그인 실패: 이미 접속 중이거나 차단된 아이디입니다.\n";
+
+            if (g_window != nullptr)
+            {
+                g_window->close();
+            }
+
+            return;
+        }
+        break;
+    }
     case S2C_AVATAR_INFO:
     {
         S2C_AvatarInfo* packet = reinterpret_cast<S2C_AvatarInfo*>(ptr);
@@ -805,7 +820,7 @@ void ProcessPacket(char* ptr)
 
             UpdateStatUI(avatar.name, avatar.m_lv, avatar.m_exp, avatar.m_hp, avatar.m_max_hp);
         }
-
+        break;
     }
     default:
         printf("Unknown PACKET type [%d]\n", ptr[1]);

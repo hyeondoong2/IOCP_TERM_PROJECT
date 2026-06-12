@@ -152,17 +152,17 @@ void NPC::RegisterAttack(int targetId)
     GTimerThread->RegisterEvent(nextEvent);
 }
 
-void NPC::Ondamaged(int attackerId, int damage)
+void NPC::OnDamaged(int attackerId, int damage)
 {
     auto self = shared_from_this();
     _hp -= damage;
 
-    S2C_StatusChange statusPkt;
-    statusPkt.size = sizeof(S2C_StatusChange);
-    statusPkt.type = S2C_STATUS_CHANGE;
-    statusPkt.object_id = _id;
-    statusPkt.hp = (_hp < 0) ? 0 : _hp; 
+    S2C_HitObject hitPkt{};
+    hitPkt.size = sizeof(S2C_HitObject);
+    hitPkt.type = S2C_HIT_OBJECT;
+    hitPkt.object_id = _id;
 
+    // 근처에 있는 플레이어들에게 상태 전송
     GSectorManager->ForEachNearbyPlayer(self, [&](int playerId)
         {
             auto obj = GObjectManager->FindObject(playerId);
@@ -177,7 +177,7 @@ void NPC::Ondamaged(int attackerId, int damage)
             if (canSeeNow)
             {
                 if (player->IsInViewList(_id))
-                    session->DoSend(reinterpret_cast<const char*>(&statusPkt));
+                    session->DoSend(reinterpret_cast<const char*>(&hitPkt));
             }
         });
 
@@ -192,6 +192,65 @@ void NPC::Ondamaged(int attackerId, int damage)
             RegisterAttack(attackerId);
         }
     }
+}
+
+bool NPC::IsInAttackRange(int targetId, int range)
+{
+    auto target = GObjectManager->FindObject(targetId);
+    if (!target) return false;
+
+    int distSq = (target->_x - _x) * (target->_x - _x)
+        + (target->_y - _y) * (target->_y - _y);
+    return distSq <= range * range;
+}
+
+void NPC::Attack(int targetId)
+{
+    auto target = GObjectManager->FindObject(targetId);
+    if (!target)
+    {
+        _attack_player = false;
+        return;
+    }
+
+    if (!IsInAttackRange(targetId))
+    {
+        _attack_player = false;
+        return;
+    }
+
+    auto player = std::static_pointer_cast<Player>(target);
+    player->OnDamaged(_id, _damage);
+
+    // attack animation
+    auto self = shared_from_this();
+
+    S2C_AttackObject attackPkt{};
+    attackPkt.size = sizeof(S2C_AttackObject);
+    attackPkt.type = S2C_ATTACK_OBJECT;
+    attackPkt.object_id = _id;
+
+    // 근처에 있는 플레이어들에게 상태 전송
+    GSectorManager->ForEachNearbyPlayer(self, [&](int playerId)
+        {
+            auto obj = GObjectManager->FindObject(playerId);
+            if (!obj) return;
+
+            auto player = std::static_pointer_cast<Player>(obj);
+            auto session = GSessionManager->Find(playerId);
+            if (!session) return;
+
+            bool canSeeNow = GSectorManager->CanSee(self, obj);
+
+            if (canSeeNow)
+            {
+                if (player->IsInViewList(_id))
+                    session->DoSend(reinterpret_cast<const char*>(&attackPkt));
+            }
+        });
+
+    _attack_player = false;
+    RegisterAttack(targetId);
 }
 
 void NPC::WakeUp()
@@ -212,6 +271,8 @@ void NPC::UpdateMove()
     auto self = shared_from_this();
 
     bool hasTarget = false;
+
+    // AGRO 몬스터
     if (_battleType == BATTLE_TYPE::AGRO)
     {
         int targetId = FindNearbyPlayer(5);
@@ -223,7 +284,7 @@ void NPC::UpdateMove()
         }
     }
 
-
+    // Peace 몬스터
     if (!hasTarget)
     {
         if (_moveType == MOVE_TYPE::ROAMING)

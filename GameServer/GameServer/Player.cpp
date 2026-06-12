@@ -114,3 +114,42 @@ void Player::UpdateViewList(const std::unordered_set<int>& newViewList)
 
     _viewList = newViewList;
 }
+
+void Player::OnDamaged(int attackerId, int damage)
+{
+    _hp -= damage;
+
+    auto mySession = GetSession();
+
+    S2C_StatusChange statusPkt{};
+    statusPkt.size = sizeof(S2C_StatusChange);
+    statusPkt.type = S2C_STATUS_CHANGE;
+    statusPkt.object_id = _id;
+    statusPkt.hp = _hp;
+    statusPkt.max_hp = _maxHp;
+    statusPkt.level = _level;
+    statusPkt.exp = _exp;
+
+    if (mySession)
+    {
+        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
+    }
+
+    S2C_HitObject hitPkt{};
+    hitPkt.size = sizeof(S2C_HitObject);
+    hitPkt.type = S2C_HIT_OBJECT;
+    hitPkt.object_id = _id;
+
+    if (mySession)
+    {
+        mySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
+    }
+
+    for (auto& nearbyId : _viewList)
+    {
+        if (!IsPlayer(nearbyId)) continue;
+        auto nearbySession = GSessionManager->Find(nearbyId);
+        if (nearbySession)
+            nearbySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
+    }
+}

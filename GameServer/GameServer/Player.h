@@ -1,7 +1,7 @@
 #pragma once
 #include "GameObject.h"
 
-class Session; 
+class Session;
 
 class Player : public GameObject
 {
@@ -27,6 +27,8 @@ public:
 
     void SendMovePacketToViewers();
     void UpdateViewList(const std::unordered_set<int>& newViewList);
+
+    void OnDamaged(int attackerId, int damage) override;
 public:
     int _visualId = 0;
     unsigned long long _exp = 0;

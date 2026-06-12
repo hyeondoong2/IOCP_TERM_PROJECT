@@ -35,7 +35,10 @@ public:
     void WakeUp();
     void UpdateMove();
     void RegisterAttack(int targetId);
-    void Ondamaged(int attackerId, int damage);
+    void Attack(int targetId);
+    bool IsInAttackRange(int targetId, int range = 2);
+
+    void OnDamaged(int attackerId, int damage) override;
 
     // °æÇèÄ¡
     int GetKillExp() const

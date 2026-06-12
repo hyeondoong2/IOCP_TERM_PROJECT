@@ -40,9 +40,19 @@ sf::Sprite* g_tileSprite;
 
 sf::Texture* g_texBunnyIdle;
 sf::Texture* g_texBunnyRun;
+sf::Texture* g_texBunnyAttack;
+sf::Texture* g_texBunnyHurt;
+sf::Texture* g_texBunnyDeath;
 
 sf::Texture* g_BlueSlimeIdle;
+sf::Texture* g_BlueSlimeAttack;
+sf::Texture* g_BlueSlimeHurt;
+
 sf::Texture* g_RedSlimeIdle;
+sf::Texture* g_RedSlimeAttack;
+sf::Texture* g_RedSlimeHurt;
+
+
 sf::Texture* g_CowIdle;
 sf::Texture* g_ChickenIdle;
 
@@ -69,10 +79,12 @@ private:
     // --- 애니메이션용 변수 추가 ---
     bool m_isAnimated = false; // 이 객체가 애니메이션을 사용하는가?
     int m_dir = 3;             // 0:위, 1:오른쪽, 2:왼쪽, 3:앞(아래)
-    int m_state = 0;           // 0:Idle, 1:Run
+    int m_state = 0;           // 0:Idle, 1:Run, 2:Hurt, 3:Attack
     int m_currentFrame = 0;    // 현재 프레임 인덱스
     sf::Clock m_animClock;     // 스프라이트 프레임 변경용 타이머
     sf::Clock m_moveClock;     // 이동 상태(Run) 유지용 타이머
+    sf::Clock m_hurtClock;
+    sf::Clock m_attackClock;
 
 public:
     int id;
@@ -131,12 +143,43 @@ public:
         m_x = x;
         m_y = y;
     }
+
+    void set_hurt()
+    {
+        if (!m_isAnimated) return;
+        m_state = 2;
+        m_currentFrame = 0;
+        m_hurtClock.restart();
+    }
+
+    void set_attack()
+    {
+        if (!m_isAnimated) return;
+        m_state = 3;
+        m_currentFrame = 0;
+        m_attackClock.restart();
+    }
+
     void draw()
     {
         if (false == m_showing) return;
 
         if (m_isAnimated)
         {
+            // hurt 0.3초 후 idle 복귀
+            if (m_state == 2 && m_hurtClock.getElapsedTime().asSeconds() > 0.3f)
+            {
+                m_state = 0;
+                m_currentFrame = 0;
+            }
+
+            // attack 0.8초 후 idle 복귀 (8프레임 * 0.1초)
+            if (m_state == 3 && m_attackClock.getElapsedTime().asSeconds() > 0.8f)
+            {
+                m_state = 0;
+                m_currentFrame = 0;
+            }
+
             if (m_state == 1 && m_moveClock.getElapsedTime().asSeconds() > 0.15f)
             {
                 m_state = 0;
@@ -154,29 +197,52 @@ public:
 
             if (id < MAX_PLAYERS)
             {
-                targetTexture = (m_state == 0) ? g_texBunnyIdle : g_texBunnyRun;
-                maxFrames = (m_state == 0) ? 5 : 8;
+                switch (m_state)
+                {
+                case 0: targetTexture = g_texBunnyIdle;   maxFrames = 5; break;
+                case 1: targetTexture = g_texBunnyRun;    maxFrames = 8; break;
+                case 2: targetTexture = g_texBunnyHurt;   maxFrames = 2; break;
+                case 3: targetTexture = g_texBunnyAttack; maxFrames = 8; break;
+                }
             }
             else
             {
-                if (id >= RED_SLIME_ID_START)		targetTexture = g_RedSlimeIdle;
-                else if (id >= COW_ID_START)		targetTexture = g_CowIdle;
-                else if (id >= CHICKEN_ID_START)	targetTexture = g_ChickenIdle;
-                else								targetTexture = g_BlueSlimeIdle;
-
-                maxFrames = 8;
+                if (id >= RED_SLIME_ID_START)
+                {
+                    switch (m_state)
+                    {
+                    case 2: targetTexture = g_RedSlimeHurt;   maxFrames = 2; break;
+                    case 3: targetTexture = g_RedSlimeAttack; maxFrames = 8; break;
+                    default:targetTexture = g_RedSlimeIdle;   maxFrames = 8; break;
+                    }
+                }
+                else if (id >= COW_ID_START)
+                {
+                    m_state = (m_state >= 2) ? 0 : m_state;
+                    targetTexture = g_CowIdle;
+                    maxFrames = 8;
+                }
+                else if (id >= CHICKEN_ID_START)
+                {
+                    m_state = (m_state >= 2) ? 0 : m_state;
+                    targetTexture = g_ChickenIdle;
+                    maxFrames = 8;
+                }
+                else  // 블루슬라임
+                {
+                    switch (m_state)
+                    {
+                    case 2: targetTexture = g_BlueSlimeHurt;   maxFrames = 2; break;
+                    case 3: targetTexture = g_BlueSlimeAttack; maxFrames = 8; break;
+                    default:targetTexture = g_BlueSlimeIdle;   maxFrames = 8; break;
+                    }
+                }
             }
 
             m_currentFrame %= maxFrames;
-
-            if (targetTexture != nullptr)
-            {
-                m_sprite.setTexture(*targetTexture);
-            }
-
+            if (targetTexture) m_sprite.setTexture(*targetTexture);
             m_sprite.setTextureRect(sf::IntRect(m_currentFrame * 64, m_dir * 64, 64, 64));
         }
-
 
         float scale = 3.0f;
         m_sprite.setScale(scale, scale);
@@ -409,7 +475,7 @@ void client_initialize()
     setupText(g_uiExpText, 16);
     setupText(g_uiHpText, 16);
 
-    g_uiNameText.setPosition(startX + (180.f), startY + (18.f));
+    g_uiNameText.setPosition(startX + (170.f), startY + (18.f));
     g_uiLvText.setPosition(startX + (330.f), startY + (18.f));
     g_uiExpText.setPosition(startX + (180.f), startY + (46.f));
     g_uiHpText.setPosition(startX + (330.f), startY + (46.f));
@@ -430,13 +496,42 @@ void client_initialize()
     g_texBunnyRun->loadFromFile("Bunny_Run.png");
     g_texBunnyRun->setSmooth(false);
 
+    g_texBunnyAttack = new sf::Texture;
+    g_texBunnyAttack->loadFromFile("Bunny_Sword.png");
+    g_texBunnyAttack->setSmooth(false);
+
+    g_texBunnyHurt = new sf::Texture;
+    g_texBunnyHurt->loadFromFile("Bunny_Hurt.png");
+    g_texBunnyHurt->setSmooth(false);
+
+    g_texBunnyDeath = new sf::Texture;
+    g_texBunnyDeath->loadFromFile("Bunny_Death.png");
+    g_texBunnyDeath->setSmooth(false);
+
+
     g_BlueSlimeIdle = new sf::Texture;
     g_BlueSlimeIdle->loadFromFile("Blue_Slime_Sprites/Slime_Idle.png");
     g_BlueSlimeIdle->setSmooth(false);
 
+    g_BlueSlimeAttack = new sf::Texture;
+    g_BlueSlimeAttack->loadFromFile("Blue_Slime_Sprites/Slime_Attack.png");
+    g_BlueSlimeAttack->setSmooth(false);
+
+    g_BlueSlimeHurt = new sf::Texture;
+    g_BlueSlimeHurt->loadFromFile("Blue_Slime_Sprites/Slime_Hurt.png");
+    g_BlueSlimeHurt->setSmooth(false);
+
     g_RedSlimeIdle = new sf::Texture;
     g_RedSlimeIdle->loadFromFile("Red_Slime_Sprites/Red_Slime_Idle.png");
     g_RedSlimeIdle->setSmooth(false);
+
+    g_RedSlimeAttack = new sf::Texture;
+    g_RedSlimeAttack->loadFromFile("Red_Slime_Sprites/Red_Slime_Attack.png");
+    g_RedSlimeAttack->setSmooth(false);
+
+    g_RedSlimeHurt = new sf::Texture;
+    g_RedSlimeHurt->loadFromFile("Red_Slime_Sprites/Red_Slime_Hurt.png");
+    g_RedSlimeHurt->setSmooth(false);
 
     g_CowIdle = new sf::Texture;
     g_CowIdle->loadFromFile("COW/Cow_Idle.png");
@@ -459,14 +554,12 @@ void client_initialize()
     g_tilesetTexture = new sf::Texture;
     g_tileSprite = new sf::Sprite;
 
-    // 점(.) 대신 화살표(->) 사용
     if (!g_tilesetTexture->loadFromFile("roguelikeSheet_transparent.png"))
     {
     }
     g_tilesetTexture->setSmooth(false);
     g_tileSprite->setTexture(*g_tilesetTexture);
 
-    // --- CSV 데이터 로드 ---
     LoadMapLayer1("map_ground1.csv");
     LoadMapLayer2("map_ground2.csv");
     LoadObstacleLayer1("map_obstacle.csv");
@@ -488,6 +581,9 @@ void client_finish()
 
     delete g_texBunnyIdle;
     delete g_texBunnyRun;
+
+    delete g_BlueSlimeAttack;
+    delete g_RedSlimeAttack;
 }
 
 void ProcessPacket(char* ptr)
@@ -508,6 +604,7 @@ void ProcessPacket(char* ptr)
         avatar.m_lv = packet->level;
         g_left_x = packet->x - SCREEN_WIDTH / 2;
         g_top_y = packet->y - SCREEN_HEIGHT / 2;
+
         UpdateStatUI(avatar.name, avatar.m_lv, avatar.m_exp, avatar.m_hp, avatar.m_max_hp);
         avatar.show();
     }
@@ -621,9 +718,39 @@ void ProcessPacket(char* ptr)
 
         break;
     }
+    case S2C_HIT_OBJECT:
+    {
+        S2C_HitObject* my_packet = reinterpret_cast<S2C_HitObject*>(ptr);
+        int other_id = my_packet->object_id;
+        if (other_id == g_myid)
+            avatar.set_hurt();
+        else if (players.count(other_id))
+            players[other_id].set_hurt();
+        break;
+    }
+    case S2C_ATTACK_OBJECT:
+    {
+        S2C_AttackObject* my_packet = reinterpret_cast<S2C_AttackObject*>(ptr);
+        int other_id = my_packet->object_id;
+        if (other_id == g_myid)
+            avatar.set_attack();
+        else if (players.count(other_id))
+            players[other_id].set_attack();
+        break;
+    }
     case S2C_STATUS_CHANGE:
     {
         S2C_StatusChange* my_packet = reinterpret_cast<S2C_StatusChange*>(ptr);
+        int other_id = my_packet->object_id;
+        if (other_id == g_myid)
+        {
+            avatar.m_exp = my_packet->exp;
+            avatar.m_hp = my_packet->hp;
+            avatar.m_lv = my_packet->level;
+            avatar.m_max_hp = my_packet->max_hp;
+
+            UpdateStatUI(avatar.name, avatar.m_lv, avatar.m_exp, avatar.m_hp, avatar.m_max_hp);
+        }
 
     }
     default:

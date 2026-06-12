@@ -110,6 +110,7 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             {
                 auto npc = std::static_pointer_cast<NPC>(GObjectManager->FindObject(obj_id));
                 if (!npc) return;
+                npc->Attack(target_id);
 
             });
         break;

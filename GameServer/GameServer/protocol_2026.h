@@ -41,7 +41,10 @@ enum PACKET_TYPE {
 	S2C_MOVE_OBJECT,	//	Server to Client: Move player or NPC
 	S2C_CHAT_MESSAGE,	//	Server to Client: Chat message
 	S2C_STATUS_CHANGE,	//	Server to Client: Update player or NPC status (e.g., health, buffs)	
-	S2C_ATTACK
+	S2C_HIT_OBJECT,
+	S2C_ATTACK_OBJECT,
+	S2C_DIE_OBJECT,
+	S2C_RESPAWN_OBJECT
 };
 
 #pragma pack(push, 1) // Ensure no padding between struct members
@@ -129,6 +132,20 @@ struct S2C_MoveObject {
 	short x;
 	short y;
 	int move_time; // in milliseconds
+};
+
+struct S2C_HitObject
+{
+	unsigned char size;
+	PACKET_TYPE   type;
+	int object_id;
+};
+
+struct S2C_AttackObject
+{
+	unsigned char size;
+	PACKET_TYPE   type;
+	int object_id;
 };
 
 struct S2C_ChatMessage {

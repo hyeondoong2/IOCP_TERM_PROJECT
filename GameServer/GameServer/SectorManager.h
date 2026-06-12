@@ -31,6 +31,7 @@ public:
 
     void ForEachNearbyObject(std::shared_ptr<GameObject> object, std::function<void(int)> callback);
     void ForEachNearbyPlayer(std::shared_ptr<GameObject> object, std::function<void(int)> callback);
+    void ForEachNearbyNPC(std::shared_ptr<GameObject> object, std::function<void(int)> callback);
 
     bool CanSee(std::shared_ptr<GameObject> from, std::shared_ptr<GameObject> to) const;
 

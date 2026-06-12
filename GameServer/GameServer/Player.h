@@ -14,6 +14,8 @@ public:
         const std::string& name,
         short x,
         short y,
+        uint8_t dbLevel, 
+        uint32_t dbExp,
         std::weak_ptr<Session> session);
 
     bool IsInGame() const;
@@ -28,10 +30,13 @@ public:
     void SendMovePacketToViewers();
     void UpdateViewList(const std::unordered_set<int>& newViewList);
 
+    void Attack();
+
     void OnDamaged(int attackerId, int damage) override;
     void OnDeath(int attackerId) override;
     void Respawn() override;
     void GetExp(int exp);
+    void LevelUp(int currExp);
 
 public:
     int _visualId = 0;

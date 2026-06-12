@@ -156,6 +156,32 @@ void SectorManager::ForEachNearbyPlayer(std::shared_ptr<GameObject> object, std:
     }
 }
 
+void SectorManager::ForEachNearbyNPC(std::shared_ptr<GameObject> object, std::function<void(int)> callback)
+{
+    if (!object) return;
+
+    int centerX = object->_sectorX;
+    int centerY = object->_sectorY;
+
+    if (!IsValidSector(centerX, centerY)) return;
+
+    for (int y = centerY - 1; y <= centerY + 1; ++y)
+    {
+        for (int x = centerX - 1; x <= centerX + 1; ++x)
+        {
+            if (!IsValidSector(x, y)) continue;
+
+            const auto& npcs = _sectors[y][x].GetNpcIds();
+            for (int npcId : npcs)
+            {
+                if (npcId == object->_id) continue;
+
+                callback(npcId);
+            }
+        }
+    }
+}
+
 bool SectorManager::CanSee(std::shared_ptr<GameObject> from, std::shared_ptr<GameObject> to) const
 {
     if (!from || !to) return false;

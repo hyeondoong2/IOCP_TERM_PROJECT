@@ -25,15 +25,5 @@ std::shared_ptr<GameObject> ObjectManager::FindObject(int objectId)
 
 bool ObjectManager::IsPlayerNameInUse(const std::string& name)
 {
-    for (const auto& pair : _objects)
-    {
-        auto player = std::dynamic_pointer_cast<Player>(pair.second);
-
-        if (player && player->_name == name)
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return _activePlayerNames.count(name) > 0;
 }

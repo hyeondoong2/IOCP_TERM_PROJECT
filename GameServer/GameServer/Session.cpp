@@ -218,12 +218,16 @@ void Session::ProcessLoginDatabase(const std::string& username, const std::wstri
     GDBManager->PostTask([self = shared_from_this(), username, wUsername](DBConnection& db)
         {
             short dbX = 0, dbY = 0;
+            uint8_t dbLevel = 0;
+            uint32_t dbExp = 0;
             bool isSuccess = false;
 
             if (UserDBHelper::IsUserRegistered(db, wUsername))
             {
                 DB_USER_INFO info = UserDBHelper::ExtractUserInfo(db, wUsername);
                 dbX = info.x; dbY = info.y;
+                dbLevel = info.level;
+                dbExp = info.exp;
                 isSuccess = true;
             }
             else
@@ -238,14 +242,15 @@ void Session::ProcessLoginDatabase(const std::string& username, const std::wstri
                 isSuccess = UserDBHelper::AddUserInfoInDataBase(db, wUsername, dbX, dbY);
             }
 
-            GGameLogicThread->PostEvent([self, username, dbX, dbY, isSuccess]()
+            GGameLogicThread->PostEvent([self, username, dbX, dbY, dbLevel, dbExp, isSuccess]()
                 {
-                    self->OnLoginResult(username, dbX, dbY, isSuccess);
+                    self->OnLoginResult(username, dbX, dbY, dbLevel, dbExp, isSuccess);
                 });
         });
 }
 
-void Session::OnLoginResult(const std::string& username, short dbX, short dbY, bool isSuccess)
+void Session::OnLoginResult(const std::string& username, short dbX, short dbY,
+    uint8_t dbLevel, uint32_t dbExp, bool isSuccess)
 {
     if (!isSuccess)
     {
@@ -254,7 +259,7 @@ void Session::OnLoginResult(const std::string& username, short dbX, short dbY, b
     }
 
     std::shared_ptr<Player> newPlayer = std::make_shared<Player>();
-    newPlayer->InitFromLogin(GetId(), username, dbX, dbY, shared_from_this());
+    newPlayer->InitFromLogin(GetId(), username, dbX, dbY, dbLevel, dbExp, shared_from_this());
     _owner = newPlayer;
 
     // 나에게만 보냄
@@ -262,6 +267,7 @@ void Session::OnLoginResult(const std::string& username, short dbX, short dbY, b
     send_my_avatar_info_packet();
 
     GObjectManager->AddObject(newPlayer);
+    GObjectManager->AddPlayerName(username);
     GSectorManager->AddObject(newPlayer);
 
     GSectorManager->SendNearbyObjectsToPlayer(newPlayer);
@@ -335,6 +341,7 @@ void Session::Logout()
             player->UpdateViewList({});
 
             GSectorManager->RemoveObject(player);
+            GObjectManager->RemovePlayerName(player->_name);
             GObjectManager->RemoveObject(player->_id);
             player.reset();
         });
@@ -342,11 +349,17 @@ void Session::Logout()
 
 void Session::HandleAttackPacket(C2S_Attack* packet)
 {
+    GGameLogicThread->PostEvent([self = shared_from_this()]()
+        {
+            auto player = self->_owner.lock();
+            if (!player) return;
+            player->Attack();
+        });
 }
 
 void Session::send_login_fail_packet()
 {
-    S2C_LoginResult p;
+    S2C_LoginResult p{};
     p.size = sizeof(S2C_LoginResult);
     p.type = S2C_LOGIN_RESULT;
     p.success = false;

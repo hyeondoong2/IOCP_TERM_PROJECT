@@ -13,12 +13,16 @@ void Player::InitFromLogin(
     const std::string& name,
     short x,
     short y,
+    uint8_t dbLevel,
+    uint32_t dbExp,
     std::weak_ptr<Session> session)
 {
     _id = id;
     _name = name;
     _x = x;
     _y = y;
+    _level = dbLevel;
+    _exp = dbExp;
     _originX = x;
     _originY = y;
 
@@ -116,6 +120,55 @@ void Player::UpdateViewList(const std::unordered_set<int>& newViewList)
     }
 
     _viewList = newViewList;
+}
+
+void Player::Attack()
+{
+    auto mySession = GetSession();
+
+    S2C_AttackObject atkPkt{};
+    atkPkt.size = sizeof(S2C_AttackObject);
+    atkPkt.type = S2C_ATTACK_OBJECT;
+    atkPkt.object_id = _id;
+
+    if (mySession)
+    {
+        mySession->DoSend(reinterpret_cast<const char*>(&atkPkt));
+    }
+
+    for (int nearbyId : _viewList)
+    {
+        auto obj = GObjectManager->FindObject(nearbyId);
+        if (!obj) continue;
+
+        if (IsPlayer(nearbyId))
+        {
+            auto viewerSession = GSessionManager->Find(nearbyId);
+            if (viewerSession)
+                viewerSession->DoSend(reinterpret_cast<const char*>(&atkPkt));
+        }
+
+        auto myPlayer = shared_from_this();
+        GSectorManager->ForEachNearbyNPC(myPlayer, [&](int nearbyId)
+            {
+                if (!IsNPC(nearbyId)) return;
+
+                auto obj = GObjectManager->FindObject(nearbyId);
+                if (!obj) return;
+
+                auto npc = std::static_pointer_cast<NPC>(obj);
+                if (npc->_state == OBJECT_STATE::DEAD) return;
+
+                int dx = std::abs(myPlayer->_x - npc->_x);
+                int dy = std::abs(myPlayer->_y - npc->_y);
+
+                if (dx <= 1 && dy <= 1)
+                {
+                    int damage = 10;
+                    npc->OnDamaged(myPlayer->_id, damage);
+                }
+            });
+    }
 }
 
 void Player::OnDamaged(int attackerId, int damage)
@@ -234,4 +287,26 @@ void Player::Respawn()
 
 void Player::GetExp(int exp)
 {
+    _exp += exp;
+    if (_exp >= _level * 100) LevelUp(_exp);
+
+    auto mySession = GetSession();
+
+    S2C_StatusChange statusPkt{};
+    statusPkt.size = sizeof(S2C_StatusChange);
+    statusPkt.type = S2C_STATUS_CHANGE;
+    statusPkt.object_id = _id;
+    statusPkt.hp = _hp;
+    statusPkt.max_hp = _maxHp;
+    statusPkt.level = _level;
+    statusPkt.exp = _exp;
+
+    if (mySession)
+        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
+}
+
+void Player::LevelUp(int currExp)
+{
+    _level += 1;
+    _exp = currExp - 100;
 }

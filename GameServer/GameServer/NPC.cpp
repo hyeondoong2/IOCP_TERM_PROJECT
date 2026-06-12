@@ -241,6 +241,8 @@ void NPC::Respawn()
     _x = _originX;        
     _y = _originY;
 
+    GSectorManager->UpdateObjectSector(shared_from_this());
+
     _state = OBJECT_STATE::IN_GAME;
     _active_npc = true;    
     _attack_player = false;
@@ -279,6 +281,8 @@ bool NPC::IsInAttackRange(int targetId, int range)
 
 void NPC::Attack(int targetId)
 {
+    if (_state == OBJECT_STATE::DEAD) return;
+
     auto target = GObjectManager->FindObject(targetId);
     if (!target)
     {

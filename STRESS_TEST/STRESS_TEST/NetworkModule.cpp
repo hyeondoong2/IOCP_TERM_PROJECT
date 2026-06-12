@@ -160,6 +160,11 @@ void ProcessPacket(int ci, unsigned char packet[])
     case S2C_ADD_OBJECT: break;
     case S2C_REMOVE_OBJECT: break;
     case S2C_CHAT_MESSAGE: break;
+    case S2C_ATTACK_OBJECT: break;
+    case S2C_DIE_OBJECT: break;
+    case S2C_HIT_OBJECT: break;
+    case S2C_RESPAWN_OBJECT: break;
+    case S2C_STATUS_CHANGE: break;
     case S2C_AVATAR_INFO:
     {
         g_clients[ci].connected = true;

@@ -119,7 +119,8 @@ public:
     // login
     void HandleLoginPacket(C2S_Login* packet);
     void ProcessLoginDatabase(const std::string& username, const std::wstring& wUsername);
-    void OnLoginResult(const std::string& username, short dbX, short dbY, bool isSuccess);
+    void OnLoginResult(const std::string& username, short dbX, short dbY, 
+        uint8_t dbLevel, uint32_t dbExp, bool isSuccess);
 
     // Move
     void HandleMovePacket(C2S_Move* packet);

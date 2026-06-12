@@ -44,7 +44,7 @@ public:
 
     int GetKillExp() const
     {
-        int base = _level * _level * 2;
+        int base =  2;
         return (_battleType == BATTLE_TYPE::AGRO) ? base * 2 : base;
     }
 

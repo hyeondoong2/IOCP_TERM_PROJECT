@@ -1,8 +1,0 @@
-#include "pch.h"
-#include "GameObject.h"
-#include "ObjectManager.h"
-#include "SectorManager.h"
-#include "SessionManager.h"
-#include "NPC.h"
-#include "Player.h"
-#include "Session.h"

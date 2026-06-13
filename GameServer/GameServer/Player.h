@@ -28,6 +28,7 @@ public:
     std::shared_ptr<Session> GetSession() { return _session.lock(); }
 
     void SendMovePacketToViewers();
+    void SendStatusChangePacket();
     void UpdateViewList(const std::unordered_set<int>& newViewList);
 
     void Attack();
@@ -37,6 +38,8 @@ public:
     void Respawn() override;
     void GetExp(int bonus);
     void LevelUp(int currExp);
+    void RegisterHeal();
+    void Heal();
 
 public:
     int _visualId = 0;
@@ -46,6 +49,8 @@ public:
     uint64_t _lastAttackTime = 0;
     uint64_t _clientMoveTime = 0;
     uint64_t _lastMoveTime = 0;
+
+    bool _isHealed = false;
 
     std::weak_ptr<Session> _session;
     std::unordered_set<int> _viewList;

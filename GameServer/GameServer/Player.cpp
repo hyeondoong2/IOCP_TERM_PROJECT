@@ -70,6 +70,23 @@ void Player::SendMovePacketToViewers()
     }
 }
 
+void Player::SendStatusChangePacket()
+{
+    auto mySession = GetSession();
+
+    S2C_StatusChange statusPkt{};
+    statusPkt.size = sizeof(S2C_StatusChange);
+    statusPkt.type = S2C_STATUS_CHANGE;
+    statusPkt.object_id = _id;
+    statusPkt.hp = _hp;
+    statusPkt.max_hp = _maxHp;
+    statusPkt.level = _level;
+    statusPkt.exp = _exp;
+
+    if (mySession)
+        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
+}
+
 void Player::UpdateViewList(const std::unordered_set<int>& newViewList)
 {
     auto mySession = GetSession();
@@ -124,6 +141,8 @@ void Player::UpdateViewList(const std::unordered_set<int>& newViewList)
 void Player::Attack()
 {
     auto mySession = GetSession();
+    if (!mySession) return;
+
     S2C_AttackObject atkPkt{ sizeof(S2C_AttackObject), S2C_ATTACK_OBJECT, _id };
 
     if (mySession) mySession->DoSend(reinterpret_cast<const char*>(&atkPkt));
@@ -164,24 +183,13 @@ void Player::OnDamaged(int attackerId, int damage)
 {
     if (_state == OBJECT_STATE::DEAD) return;
 
+    auto mySession = GetSession();
+    if (!mySession) return;
+
     _hp -= damage;
     if (_hp < 0) _hp = 0;
 
-    auto mySession = GetSession();
-
-    S2C_StatusChange statusPkt{};
-    statusPkt.size = sizeof(S2C_StatusChange);
-    statusPkt.type = S2C_STATUS_CHANGE;
-    statusPkt.object_id = _id;
-    statusPkt.hp = _hp;
-    statusPkt.max_hp = _maxHp;
-    statusPkt.level = _level;
-    statusPkt.exp = _exp;
-
-    if (mySession)
-    {
-        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
-    }
+    SendStatusChangePacket();
 
     if (_hp <= 0)
     {
@@ -206,6 +214,8 @@ void Player::OnDamaged(int attackerId, int damage)
             if (nearbySession)
                 nearbySession->DoSend(reinterpret_cast<const char*>(&hitPkt));
         }
+
+        RegisterHeal();
     }
 }
 
@@ -214,6 +224,7 @@ void Player::OnDeath(int attackerId)
     if (_state == OBJECT_STATE::DEAD) return;
 
     auto mySession = GetSession();
+    if (!mySession) return;
 
     _hp = 0;
     _state = OBJECT_STATE::DEAD;
@@ -258,17 +269,9 @@ void Player::Respawn()
     GSectorManager->SendNearbyObjectsToPlayer(selfPlayer);
 
     auto mySession = GetSession();
+    if (!mySession) return;
 
-    S2C_StatusChange statusPkt{};
-    statusPkt.size = sizeof(S2C_StatusChange);
-    statusPkt.type = S2C_STATUS_CHANGE;
-    statusPkt.object_id = _id;
-    statusPkt.hp = _hp;
-    statusPkt.max_hp = _maxHp;
-    statusPkt.level = _level;
-    statusPkt.exp = _exp;
-    if (mySession)
-        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
+    SendStatusChangePacket();
 
     if (mySession)
         mySession->send_add_object_packet(shared_from_this());
@@ -279,23 +282,44 @@ void Player::GetExp(int bonus)
     _exp += (_level * _level * 2 * bonus);
     if (_exp >= _level * 100) LevelUp(_exp);
 
-    auto mySession = GetSession();
-
-    S2C_StatusChange statusPkt{};
-    statusPkt.size = sizeof(S2C_StatusChange);
-    statusPkt.type = S2C_STATUS_CHANGE;
-    statusPkt.object_id = _id;
-    statusPkt.hp = _hp;
-    statusPkt.max_hp = _maxHp;
-    statusPkt.level = _level;
-    statusPkt.exp = _exp;
-
-    if (mySession)
-        mySession->DoSend(reinterpret_cast<const char*>(&statusPkt));
+    SendStatusChangePacket();
 }
 
 void Player::LevelUp(int currExp)
 {
     _exp = currExp - (100 * _level);
     _level += 1;
+}
+
+void Player::RegisterHeal()
+{
+    if (_isHealed) return;
+    _isHealed = true;
+
+    TIMER_EVENT nextEvent;
+    nextEvent.event_type = TIMER_EVENT_PLAYER_HEAL;
+    nextEvent.obj_id = this->_id;
+    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(PLAYER_HEAL_INTERVAL);
+
+    GTimerThread->RegisterEvent(nextEvent);
+}
+
+void Player::Heal()
+{
+    _isHealed = false;
+
+    int heal_amount = _maxHp / 10;
+
+    _hp += heal_amount;
+
+    if (_hp > _maxHp)
+    {
+        _hp = _maxHp;
+    }
+    else
+    {
+        RegisterHeal();
+    }
+    
+    SendStatusChangePacket();
 }

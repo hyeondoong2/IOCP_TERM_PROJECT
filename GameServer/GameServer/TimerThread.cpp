@@ -113,6 +113,7 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
                 auto player = std::static_pointer_cast<Player>(GObjectManager->FindObject(obj_id));
                 if (!player) return;
                 if (player->_state == OBJECT_STATE::DEAD) return;
+                player->Heal();
             });
         break;
     }

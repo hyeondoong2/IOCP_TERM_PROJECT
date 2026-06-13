@@ -100,6 +100,7 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             {
                 auto npc = std::static_pointer_cast<NPC>(GObjectManager->FindObject(obj_id));
                 if (!npc) return;
+                if (npc->_state == OBJECT_STATE::DEAD) return;
                 npc->UpdateMove();
             });
         break;
@@ -111,7 +112,7 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             {
                 auto player = std::static_pointer_cast<Player>(GObjectManager->FindObject(obj_id));
                 if (!player) return;
-               
+                if (player->_state == OBJECT_STATE::DEAD) return;
             });
         break;
     }
@@ -122,6 +123,7 @@ void TimerThread::ProcessTimerEvent(const TIMER_EVENT& timerEvent)
             {
                 auto npc = std::static_pointer_cast<NPC>(GObjectManager->FindObject(obj_id));
                 if (!npc) return;
+                if (npc->_state == OBJECT_STATE::DEAD) return;
                 npc->Attack(target_id);
 
             });

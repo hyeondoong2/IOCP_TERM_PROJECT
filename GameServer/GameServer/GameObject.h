@@ -26,7 +26,7 @@ public:
     int _sectorX = -1;
     int _sectorY = -1;
 
-    int _lastMoveTime = 0;
+    uint64_t _lastMoveTime = 0;
 
     OBJECT_STATE _state = OBJECT_STATE::NONE;
 };

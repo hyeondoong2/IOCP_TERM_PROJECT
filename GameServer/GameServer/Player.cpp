@@ -125,50 +125,40 @@ void Player::UpdateViewList(const std::unordered_set<int>& newViewList)
 void Player::Attack()
 {
     auto mySession = GetSession();
+    S2C_AttackObject atkPkt{ sizeof(S2C_AttackObject), S2C_ATTACK_OBJECT, _id };
 
-    S2C_AttackObject atkPkt{};
-    atkPkt.size = sizeof(S2C_AttackObject);
-    atkPkt.type = S2C_ATTACK_OBJECT;
-    atkPkt.object_id = _id;
-
-    if (mySession)
-    {
-        mySession->DoSend(reinterpret_cast<const char*>(&atkPkt));
-    }
-
+    if (mySession) mySession->DoSend(reinterpret_cast<const char*>(&atkPkt));
     for (int nearbyId : _viewList)
     {
-        auto obj = GObjectManager->FindObject(nearbyId);
-        if (!obj) continue;
-
         if (IsPlayer(nearbyId))
         {
             auto viewerSession = GSessionManager->Find(nearbyId);
-            if (viewerSession)
-                viewerSession->DoSend(reinterpret_cast<const char*>(&atkPkt));
+            if (viewerSession) viewerSession->DoSend(reinterpret_cast<const char*>(&atkPkt));
         }
-
-        auto myPlayer = shared_from_this();
-        GSectorManager->ForEachNearbyNPC(myPlayer, [&](int nearbyId)
-            {
-                if (!IsNPC(nearbyId)) return;
-
-                auto obj = GObjectManager->FindObject(nearbyId);
-                if (!obj) return;
-
-                auto npc = std::static_pointer_cast<NPC>(obj);
-                if (npc->_state == OBJECT_STATE::DEAD) return;
-
-                int dx = std::abs(myPlayer->_x - npc->_x);
-                int dy = std::abs(myPlayer->_y - npc->_y);
-
-                if (dx <= 1 && dy <= 1)
-                {
-                    int damage = 10;
-                    npc->OnDamaged(myPlayer->_id, damage);
-                }
-            });
     }
+
+    auto myPlayer = shared_from_this();
+    std::unordered_set<int> hitNpcs; 
+
+    GSectorManager->ForEachNearbyNPC(myPlayer, [&](int npcId)
+        {
+            auto obj = GObjectManager->FindObject(npcId);
+            if (!obj || obj->_state == OBJECT_STATE::DEAD) return;
+
+            int dx = std::abs(myPlayer->_x - obj->_x);
+            int dy = std::abs(myPlayer->_y - obj->_y);
+
+            if (dx <= 1 && dy <= 1)
+            {
+                // 중복 타격 방지
+                if (hitNpcs.find(npcId) == hitNpcs.end())
+                {
+                    auto npc = std::static_pointer_cast<NPC>(obj);
+                    npc->OnDamaged(myPlayer->_id, 10);
+                    hitNpcs.insert(npcId);
+                }
+            }
+        });
 }
 
 void Player::OnDamaged(int attackerId, int damage)

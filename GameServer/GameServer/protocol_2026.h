@@ -6,17 +6,18 @@ constexpr int WORLD_HEIGHT = 2000;
 constexpr int MAX_PLAYERS = 10000;
 constexpr int NUM_NPCS = 200000;
 constexpr int NPC_ID_START = 1000000;
-constexpr int NPC_MOVE_INTERVAL = 1000; // in milliseconds
+constexpr int NPC_MOVE_INTERVAL = 500; // in milliseconds
+constexpr int NPC_ATTACK_INTERVAL = 1000; // in milliseconds
 constexpr int MAX_NAME_LEN = 20;
 constexpr int MAX_CHAT_MSG_LEN = 200;
 constexpr int BUF_SIZE = 1024;
 
-constexpr int NPC_PER_TYPE = 50000;  // 5만마리씩
+constexpr int NPC_PER_TYPE = 80000; // 가장 큰 count인 8만에 맞춰 설정
 
-constexpr int BLUE_SLIME_ID_START = NPC_ID_START;                      // 1000000 ~ 1049999
-constexpr int CHICKEN_ID_START = NPC_ID_START + NPC_PER_TYPE;       // 1050000 ~ 1099999
-constexpr int COW_ID_START = NPC_ID_START + NPC_PER_TYPE * 2;   // 1100000 ~ 1149999
-constexpr int RED_SLIME_ID_START = NPC_ID_START + NPC_PER_TYPE * 3;   // 1150000 ~ 1199999
+// ID 범위 계산 (각 80,000씩 할당)
+constexpr int BLUE_SLIME_ID_START = NPC_ID_START;                   // 1,000,000 ~ 1,079,999
+constexpr int CHICKEN_ID_START = NPC_ID_START + NPC_PER_TYPE;    // 1,080,000 ~ 1,159,999
+constexpr int COW_ID_START = NPC_ID_START + NPC_PER_TYPE * 2;
 
 
 enum PACKET_TYPE { 
@@ -59,7 +60,7 @@ struct C2S_Move {
 	PACKET_TYPE   type;
 	short x;
 	short y;
-	int move_time; // in milliseconds
+	uint64_t move_time; // in milliseconds
 };
 
 struct C2S_Chat {
@@ -131,7 +132,7 @@ struct S2C_MoveObject {
 	int object_id;
 	short x;
 	short y;
-	int move_time; // in milliseconds
+	uint64_t move_time; // in milliseconds
 };
 
 struct S2C_HitObject

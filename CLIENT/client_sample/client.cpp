@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 using namespace std;
+using namespace chrono;
 
 #include "..\..\GameServer\GameServer\protocol_2026.h"
 
@@ -227,17 +228,7 @@ public:
             }
             else
             {
-                if (id >= RED_SLIME_ID_START)
-                {
-                    switch (m_state)
-                    {
-                    case 2: targetTexture = g_RedSlimeHurt;   maxFrames = 2; break;
-                    case 3: targetTexture = g_RedSlimeAttack; maxFrames = 8; break;
-                    case 4: targetTexture = g_RedSlimeDeath; maxFrames = 4; break;
-                    default:targetTexture = g_RedSlimeIdle;   maxFrames = 8; break;
-                    }
-                }
-                else if (id >= COW_ID_START)
+                if (id >= COW_ID_START)
                 {
                     m_state = (m_state >= 2) ? 0 : m_state;
                     targetTexture = g_CowIdle;
@@ -275,7 +266,15 @@ public:
             }
 
             if (targetTexture) m_sprite.setTexture(*targetTexture);
-            m_sprite.setTextureRect(sf::IntRect(m_currentFrame * 64, m_dir * 64, 64, 64));
+
+            int draw_dir = m_dir;
+
+            if (id >= MAX_PLAYERS && m_state == 4)
+            {
+                draw_dir = 0;
+            }
+
+            m_sprite.setTextureRect(sf::IntRect(m_currentFrame * 64, draw_dir * 64, 64, 64));
         }
 
         float scale = 3.0f;
@@ -345,7 +344,6 @@ bool IsBlocked(int x, int y)
     if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return true;
     int obs1 = g_bgObstacleData1[y][x];
     int obs2 = g_bgObstacleData2[y][x];
-    std::cout << "IsBlocked(" << x << ", " << y << ") obs1=" << obs1 << " obs2=" << obs2 << std::endl;
     return obs1 != -1 || obs2 != -1;
 }
 
@@ -608,8 +606,8 @@ void client_initialize()
     LoadObstacleLayer1("map_obstacle.csv");
     LoadObstacleLayer2("map_obstacle2.csv");
 
-    avatar = OBJECT{ *g_texBunnyIdle, 0, 192, 64, 64 }; 
-    avatar.set_animated(true); 
+    avatar = OBJECT{ *g_texBunnyIdle, 0, 192, 64, 64 };
+    avatar.set_animated(true);
     avatar.move(4, 4);
 }
 
@@ -634,7 +632,7 @@ void ProcessPacket(char* ptr)
     static bool first_time = true;
     switch (ptr[1])
     {
-    case S2C_LOGIN_RESULT: 
+    case S2C_LOGIN_RESULT:
     {
         S2C_LoginResult* packet = reinterpret_cast<S2C_LoginResult*>(ptr);
         if (!packet->success)
@@ -665,7 +663,7 @@ void ProcessPacket(char* ptr)
 
         UpdateStatUI(avatar.name, avatar.m_lv, avatar.m_exp, avatar.m_hp, avatar.m_max_hp);
         avatar.show();
-    break;
+        break;
     }
 
     case S2C_ADD_OBJECT:
@@ -696,11 +694,7 @@ void ProcessPacket(char* ptr)
         {
             sf::Texture* targetTexture = nullptr;
 
-            if (id >= RED_SLIME_ID_START)
-            {
-                targetTexture = g_RedSlimeIdle;
-            }
-            else if (id >= COW_ID_START)
+            if (id >= COW_ID_START)
             {
                 targetTexture = g_CowIdle;
             }
@@ -945,7 +939,7 @@ void client_main()
 
     if (avatar.m_isDead && avatar.is_death_animation_finished())
     {
-        avatar.hide(); 
+        avatar.hide();
     }
 
     avatar.draw();
@@ -984,9 +978,7 @@ void send_packet(void* packet)
 
 int main()
 {
-    std::string ipAddress;
-    std::cout << "접속할 IP 주소를 입력하세요: ";
-    std::cin >> ipAddress;
+    std::string ipAddress = "127.0.0.1";
 
     wcout.imbue(locale("korean"));
 
@@ -1091,6 +1083,11 @@ int main()
                             p.type = C2S_MOVE;
                             p.x = next_x;
                             p.y = next_y;
+                            p.move_time = static_cast<uint64_t>(
+                                std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::high_resolution_clock::now().time_since_epoch()
+                                ).count()
+                                );
                             send_packet(&p);
                         }
                     }

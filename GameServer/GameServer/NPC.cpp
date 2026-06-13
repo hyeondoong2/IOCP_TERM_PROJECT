@@ -47,6 +47,8 @@ void NPC::DoAgroMove(int targetId)
     auto targetObj = GObjectManager->FindObject(targetId);
     if (!targetObj) return;
 
+    if (IsInAttackRange(targetId, 1)) return;
+
     short destX = targetObj->_x;
     short destY = targetObj->_y;
 
@@ -150,7 +152,7 @@ void NPC::RegisterAttack(int targetId)
     nextEvent.event_type = TIMER_EVENT_NPC_ATTACK;
     nextEvent.obj_id = this->_id;
     nextEvent.target_id = targetId;
-    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(1000);
+    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(NPC_ATTACK_INTERVAL);
 
     GTimerThread->RegisterEvent(nextEvent);
 }
@@ -205,6 +207,7 @@ void NPC::OnDeath(int attackerId)
 {
     if (_state == OBJECT_STATE::DEAD) return;
 
+    std::cout << "monster is dead" << std::endl;
     _state = OBJECT_STATE::DEAD;
     _active_npc = false;
     _attack_player = false;
@@ -218,7 +221,13 @@ void NPC::OnDeath(int attackerId)
     GSectorManager->ForEachNearbyPlayer(self, [&](int playerId)
         {
             auto session = GSessionManager->Find(playerId);
-            if (session) session->DoSend(reinterpret_cast<const char*>(&diePkt));
+            {
+                if (session) session->DoSend(reinterpret_cast<const char*>(&diePkt));
+                if (auto player = session->_owner.lock())
+                {
+                    player->_viewList.erase(_id);
+                }
+            }
         });
 
     auto attacker = GObjectManager->FindObject(attackerId);
@@ -336,40 +345,51 @@ void NPC::WakeUp()
     TIMER_EVENT nextEvent;
     nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
     nextEvent.obj_id = this->_id;
-    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(1000);
+    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(NPC_MOVE_INTERVAL);
 
     GTimerThread->RegisterEvent(nextEvent);
 }
 
 void NPC::UpdateMove()
 {
+    if (_state == OBJECT_STATE::DEAD) return;
+
     auto self = shared_from_this();
+    bool isAggroing = false;
 
-    bool hasTarget = false;
-
-    // AGRO 몬스터
+    // 1. 공격 타입에 따른 타겟 탐색 (PEACE는 타겟을 찾지 않음)
+    int targetId = -1;
     if (_battleType == BATTLE_TYPE::AGRO)
     {
-        int targetId = FindNearbyPlayer(5);
-        if (targetId != -1)
-        {
-            DoAgroMove(targetId);
-            hasTarget = true;
-            RegisterAttack(targetId);
-        }
+        targetId = FindNearbyPlayer(5); // 시야 범위 5
     }
 
-    // Peace 몬스터
-    if (!hasTarget)
+    // 2. 타겟이 있을 때 (추적 or 공격)
+    if (targetId != -1)
     {
+        isAggroing = true;
+        if (IsInAttackRange(targetId, 1))
+        {
+            // 공격 범위 안: 추적 멈추고 제자리에서 공격 이벤트 등록
+            RegisterAttack(targetId);
+        }
+        else
+        {
+            // 공격 범위 밖: 추적
+            DoAgroMove(targetId);
+        }
+    }
+    // 3. 타겟이 없을 때 (Roaming or Fixed)
+    else
+    {
+        // 평화로울 때 공격 타이머 취소 (기획: 멀어지면 안 때림)
+        _attack_player = false;
+
         if (_moveType == MOVE_TYPE::ROAMING)
         {
             DoRoamingMove();
         }
-        else if (_moveType == MOVE_TYPE::FIXED)
-        {
-            DoFixedMove();
-        }
+        // FIXED는 아무것도 안 함 (가만히 있음)
     }
 
     GSectorManager->UpdateObjectSector(self);

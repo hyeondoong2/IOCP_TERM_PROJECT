@@ -94,6 +94,7 @@ void SectorManager::SendNearbyObjectsToPlayer(std::shared_ptr<Player> player)
         {
             auto nearbyObj = GObjectManager->FindObject(nearbyId);
             if (!nearbyObj) return;
+            if (nearbyObj->_state == OBJECT_STATE::DEAD) return;
 
             if (CanSee(basePlayer, nearbyObj))
             {

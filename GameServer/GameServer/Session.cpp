@@ -8,6 +8,7 @@
 #include "ObjectManager.h"
 #include "SectorManager.h"
 #include "Collision.h"
+#include "TimerThread.h"
 
 
 Session::Session(SOCKET socket)
@@ -301,7 +302,7 @@ void Session::HandleMovePacket(C2S_Move* packet)
 
             player->_x = x;
             player->_y = y;
-            player->_lastMoveTime = move_time;
+            //player->_lastMoveTime = move_time;
             GSectorManager->UpdateObjectSector(player);
             GSectorManager->SendNearbyObjectsToPlayer(player);
             player->SendMovePacketToViewers();
@@ -524,6 +525,23 @@ void Session::ProcessPacket(char* packet)
     }
     case PACKET_TYPE::C2S_MOVE:
     {
+        auto player = _owner.lock();
+        if (!player) return;
+
+        // 1. 현재 시간을 '밀리초(milliseconds)' 단위의 uint64_t로 변환
+        uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            TimerThread::Now().time_since_epoch()).count();
+
+        // 2. 비교: lastMoveTime이 0이 아니고, 
+        //    마지막 이동 시간 + 500(ms)가 현재 시간보다 크면 (즉, 0.5초가 안 지났으면) 리턴
+        if (player->_lastMoveTime != 0 && (player->_lastMoveTime + 500 > now_ms))
+        {
+            return;
+        }
+
+        // 3. 이동 처리 후 현재 시간을 저장
+        player->_lastMoveTime = now_ms;
+
         C2S_Move* movePacket = reinterpret_cast<C2S_Move*>(packet);
         HandleMovePacket(movePacket);
         break;

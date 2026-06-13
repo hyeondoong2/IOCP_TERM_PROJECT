@@ -25,6 +25,8 @@ public:
         return _viewList.count(id) > 0;
     }
 
+    
+
     std::shared_ptr<Session> GetSession() { return _session.lock(); }
 
     void SendMovePacketToViewers();

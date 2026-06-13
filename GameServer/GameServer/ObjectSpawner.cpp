@@ -63,7 +63,6 @@ void ObjectSpawner::Init()
             if (type == "BLUESLIME")      startId = BLUE_SLIME_ID_START;
             else if (type == "CHICKEN")   startId = CHICKEN_ID_START;
             else if (type == "COW")       startId = COW_ID_START;
-            else if (type == "REDSLIME")  startId = RED_SLIME_ID_START;
             else
             {
                 std::cout << "알 수 없는 몬스터 타입입니다: " << type << std::endl;

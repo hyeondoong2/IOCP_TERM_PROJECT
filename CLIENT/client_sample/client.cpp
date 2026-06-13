@@ -997,6 +997,9 @@ int main()
     std::string player_name = "";
     bool isLoginScreen = true;
 
+    sf::Clock lastMoveClock;
+    sf::Clock lastAttackClock;
+
     while (window.isOpen())
     {
         sf::Event event;
@@ -1062,6 +1065,10 @@ int main()
                     case sf::Keyboard::Up:    move_y = -1; break;
                     case sf::Keyboard::Down:  move_y = 1;  break;
                     case sf::Keyboard::A: {
+                        if (lastAttackClock.getElapsedTime().asSeconds() < 1.0f) break;
+
+                        lastAttackClock.restart();
+
                         C2S_Attack p;
                         p.size = sizeof(p);
                         p.type = C2S_ATTACK;
@@ -1073,11 +1080,18 @@ int main()
 
                     if (move_x != 0 || move_y != 0)
                     {
+                        if (lastMoveClock.getElapsedTime().asSeconds() < 0.5f)
+                        {
+                            continue; 
+                        }
+
                         int next_x = avatar.m_x + move_x;
                         int next_y = avatar.m_y + move_y;
 
                         if (!IsBlocked(next_x, next_y))
                         {
+                            lastMoveClock.restart();
+
                             C2S_Move p;
                             p.size = sizeof(p);
                             p.type = C2S_MOVE;

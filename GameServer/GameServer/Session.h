@@ -134,7 +134,6 @@ public:
     void send_avatar_packet(std::shared_ptr<Player> target_player);
     void send_add_object_packet(std::shared_ptr<GameObject> obj);
     void send_remove_object_packet(int objectId);
-    void send_move_object_packet(std::shared_ptr<GameObject> obj);
 
 private:
     bool PostSend(SendOverlapped* sendOver);

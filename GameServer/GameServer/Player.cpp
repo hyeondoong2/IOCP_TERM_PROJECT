@@ -46,8 +46,7 @@ void Player::SendMovePacketToViewers()
     movePkt.object_id = _id;
     movePkt.x = _x;
     movePkt.y = _y;
-    movePkt.move_time = _lastMoveTime;
-    //std::cout << _lastMoveTime << std::endl;
+    movePkt.move_time = _clientMoveTime;
 
     if (mySession)
     {

@@ -25,8 +25,6 @@ public:
         return _viewList.count(id) > 0;
     }
 
-    
-
     std::shared_ptr<Session> GetSession() { return _session.lock(); }
 
     void SendMovePacketToViewers();
@@ -45,7 +43,10 @@ public:
     unsigned long long _exp = 0;
     unsigned char _level = 1;
 
-    std::weak_ptr<Session> _session;
+    uint64_t _lastAttackTime = 0;
+    uint64_t _clientMoveTime = 0;
+    uint64_t _lastMoveTime = 0;
 
+    std::weak_ptr<Session> _session;
     std::unordered_set<int> _viewList;
 };

@@ -295,6 +295,7 @@ void Session::HandleMovePacket(C2S_Move* packet)
                 sync_packet.object_id = player->_id; 
                 sync_packet.x = player->_x;         
                 sync_packet.y = player->_y;         
+                sync_packet.move_time = move_time;
 
                 self->DoSend(reinterpret_cast<const char*>(&sync_packet));
                 return;
@@ -302,7 +303,8 @@ void Session::HandleMovePacket(C2S_Move* packet)
 
             player->_x = x;
             player->_y = y;
-            //player->_lastMoveTime = move_time;
+            player->_clientMoveTime = move_time;
+
             GSectorManager->UpdateObjectSector(player);
             GSectorManager->SendNearbyObjectsToPlayer(player);
             player->SendMovePacketToViewers();
@@ -449,19 +451,6 @@ void Session::send_remove_object_packet(int objectId)
     DoSend(reinterpret_cast<const char*>(&p));
 }
 
-void Session::send_move_object_packet(std::shared_ptr<GameObject> obj)
-{
-    S2C_MoveObject p{};
-    p.size = sizeof(S2C_MoveObject);
-    p.type = S2C_MOVE_OBJECT;
-    p.object_id = obj->_id;
-    p.x = obj->_x;
-    p.y = obj->_y;
-    p.move_time = obj->_lastMoveTime;
-
-    DoSend(reinterpret_cast<const char*>(&p));
-}
-
 bool Session::PostSend(SendOverlapped* sendOver)
 {
     DWORD sendBytes = 0;
@@ -480,7 +469,7 @@ bool Session::PostSend(SendOverlapped* sendOver)
         const int err = ::WSAGetLastError();
         if (err != WSA_IO_PENDING)
         {
-            std::cout << "WSASend Error: " << err << "\n";
+            //std::cout << "WSASend Error: " << err << "\n";
 
             std::queue<SendOverlapped*> clearQueue;
             {
@@ -528,18 +517,14 @@ void Session::ProcessPacket(char* packet)
         auto player = _owner.lock();
         if (!player) return;
 
-        // 1. 현재 시간을 '밀리초(milliseconds)' 단위의 uint64_t로 변환
         uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             TimerThread::Now().time_since_epoch()).count();
 
-        // 2. 비교: lastMoveTime이 0이 아니고, 
-        //    마지막 이동 시간 + 500(ms)가 현재 시간보다 크면 (즉, 0.5초가 안 지났으면) 리턴
         if (player->_lastMoveTime != 0 && (player->_lastMoveTime + 500 > now_ms))
         {
             return;
         }
 
-        // 3. 이동 처리 후 현재 시간을 저장
         player->_lastMoveTime = now_ms;
 
         C2S_Move* movePacket = reinterpret_cast<C2S_Move*>(packet);
@@ -550,6 +535,19 @@ void Session::ProcessPacket(char* packet)
         break;
     case PACKET_TYPE::C2S_ATTACK:
     {
+        auto player = _owner.lock();
+        if (!player) return;
+
+        uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            TimerThread::Now().time_since_epoch()).count();
+
+        if (player->_lastAttackTime != 0 && (player->_lastAttackTime + 1000 > now_ms))
+        {
+            return;
+        }
+
+        player->_lastAttackTime = now_ms;
+
         C2S_Attack* attackPacket = reinterpret_cast<C2S_Attack*>(packet);
         HandleAttackPacket(attackPacket);
         break;

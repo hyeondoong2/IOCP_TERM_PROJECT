@@ -12,12 +12,9 @@ constexpr int MAX_NAME_LEN = 20;
 constexpr int MAX_CHAT_MSG_LEN = 200;
 constexpr int BUF_SIZE = 1024;
 
-constexpr int NPC_PER_TYPE = 80000; // 가장 큰 count인 8만에 맞춰 설정
-
-// ID 범위 계산 (각 80,000씩 할당)
-constexpr int BLUE_SLIME_ID_START = NPC_ID_START;                   // 1,000,000 ~ 1,079,999
-constexpr int CHICKEN_ID_START = NPC_ID_START + NPC_PER_TYPE;    // 1,080,000 ~ 1,159,999
-constexpr int COW_ID_START = NPC_ID_START + NPC_PER_TYPE * 2;
+constexpr int BLUE_SLIME_ID_START = NPC_ID_START;                  
+constexpr int CHICKEN_ID_START = BLUE_SLIME_ID_START + 40000;
+constexpr int COW_ID_START = CHICKEN_ID_START + 80000;
 
 
 enum PACKET_TYPE { 

@@ -128,6 +128,9 @@ public:
     // Attack
     void HandleAttackPacket(C2S_Attack* packet);
 
+    // Chatting
+    void HandleChattingPacket(C2S_Chat* packet);
+
     void send_login_fail_packet();
     void send_login_success_packet();
     void send_my_avatar_info_packet();

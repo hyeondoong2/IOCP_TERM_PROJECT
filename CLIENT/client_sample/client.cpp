@@ -6,6 +6,7 @@
 #include <chrono>
 #include <fstream>
 #include <sstream>
+
 using namespace std;
 using namespace chrono;
 
@@ -27,6 +28,15 @@ int g_bgObstacleData2[WORLD_HEIGHT][WORLD_WIDTH];
 
 sf::Texture* g_loginTexture;
 sf::Sprite* g_loginSprite;
+
+sf::Texture* g_ChattingBoxTexture;
+sf::Sprite* g_ChattingBoxSprite;
+
+sf::Texture* g_TextBoxTexture;
+sf::Sprite* g_TextBoxBoxSprite;
+
+sf::Texture* g_QuestTexture;
+sf::Sprite* g_QuestBoxSprite;
 
 sf::Texture* g_uiStatTexture;
 sf::Sprite* g_uiStatSprite;
@@ -291,18 +301,52 @@ public:
         auto size = m_name.getGlobalBounds();
         float spriteCenterX = rx;
 
-        if (m_mess_end_time < chrono::system_clock::now())
+        auto name_size = m_name.getGlobalBounds();
+        m_name.setPosition(spriteCenterX - name_size.width / 2.f, ry - (32.f * scale) - 5.f);
+
+        if (id == g_myid)
         {
-            if (id == g_myid)
-            {
-                m_name.setPosition(spriteCenterX - size.width / 2.f, ry - (32.f * scale) - 5.f);
-                g_window->draw(m_name);
-            }
+            g_window->draw(m_name);
         }
-        else
+
+        if (chrono::system_clock::now() <= m_mess_end_time)
         {
-            m_chat.setPosition(spriteCenterX - size.width / 2.f, ry - (32.f * scale) - 15.f);
-            g_window->draw(m_chat);
+            auto chat_size = m_chat.getGlobalBounds();
+
+            if (g_ChattingBoxSprite != nullptr)
+            {
+                auto box_local_size = g_ChattingBoxSprite->getLocalBounds();
+
+                float padding = 30.f;
+                float boxScaleX = (chat_size.width + padding) / box_local_size.width;
+                float boxScaleY = 1.0f; // 세로는 고정
+
+                g_ChattingBoxSprite->setScale(boxScaleX, boxScaleY);
+
+                auto box_global_size = g_ChattingBoxSprite->getGlobalBounds();
+
+                float boxX = spriteCenterX - (box_global_size.width / 2.f);
+                float boxY = ry - (32.f * scale) - box_global_size.height - 10.f; 
+
+                g_ChattingBoxSprite->setPosition(boxX, boxY);
+                g_window->draw(*g_ChattingBoxSprite);
+
+
+                float textX = spriteCenterX - (chat_size.width / 2.f);
+
+                float textY = boxY + (box_global_size.height / 2.f) - (chat_size.height / 2.f) - 10.f;
+
+                m_chat.setPosition(textX, textY);
+                g_window->draw(m_chat);
+            }
+            else
+            {
+                // 말풍선 이미지가 없을 때 텍스트만 그리는 예외 처리
+                float textX = spriteCenterX - (chat_size.width / 2.f);
+                float textY = ry - (32.f * scale) - 30.f;
+                m_chat.setPosition(textX, textY);
+                g_window->draw(m_chat);
+            }
         }
     }
     void set_name(const char str[])
@@ -319,10 +363,12 @@ public:
 
     void set_chat(const char str[])
     {
+        std::string chat_with_name = std::string(name) + ": " + str;
+
         m_chat.setFont(g_font);
-        m_chat.setString(str);
-        m_name.setCharacterSize(20);
-        m_chat.setFillColor(sf::Color(255, 255, 255));
+        m_chat.setString(chat_with_name);
+        m_chat.setCharacterSize(20);
+        m_chat.setFillColor(sf::Color(103, 48, 36));
         m_chat.setStyle(sf::Text::Bold);
         m_mess_end_time = chrono::system_clock::now() + chrono::seconds(3);
     }
@@ -511,6 +557,18 @@ void client_initialize()
     g_uiLvText.setPosition(startX + (330.f), startY + (18.f));
     g_uiExpText.setPosition(startX + (180.f), startY + (46.f));
     g_uiHpText.setPosition(startX + (330.f), startY + (46.f));
+
+    g_ChattingBoxTexture = new sf::Texture;
+    g_ChattingBoxTexture->loadFromFile("chatting_box.png");
+    g_ChattingBoxTexture->setSmooth(false);
+
+    g_ChattingBoxSprite = new sf::Sprite(*g_ChattingBoxTexture);
+
+    g_TextBoxTexture = new sf::Texture;
+    g_TextBoxTexture->loadFromFile("MessageBar.png");
+    g_TextBoxTexture->setSmooth(false);
+
+    g_TextBoxBoxSprite = new sf::Sprite(*g_TextBoxTexture);
 
     // login
     g_loginTexture = new sf::Texture;
@@ -759,6 +817,9 @@ void ProcessPacket(char* ptr)
     {
         S2C_ChatMessage* my_packet = reinterpret_cast<S2C_ChatMessage*>(ptr);
         int other_id = my_packet->object_id;
+
+        std::cout << "채팅 수신 완료! ID: " << other_id << ", 내용: " << my_packet->message << std::endl;
+
         if (other_id == g_myid)
         {
             avatar.set_chat(my_packet->message);
@@ -830,7 +891,12 @@ void process_data(char* net_buf, size_t io_byte)
 
     while (0 != io_byte)
     {
-        if (0 == in_packet_size) in_packet_size = ptr[0];
+        if (0 == in_packet_size)
+        {
+            in_packet_size = static_cast<unsigned char>(ptr[0]);
+        }
+
+
         if (io_byte + saved_packet_size >= in_packet_size)
         {
             memcpy(packet_buffer + saved_packet_size, ptr, in_packet_size - saved_packet_size);
@@ -1000,6 +1066,19 @@ int main()
     sf::Clock lastMoveClock;
     sf::Clock lastAttackClock;
 
+    bool isChatting = false;
+    std::string chat_message = "";
+    sf::Text ui_chatText;
+    ui_chatText.setFont(g_font);
+    ui_chatText.setCharacterSize(24);
+    ui_chatText.setFillColor(sf::Color::White);
+
+    if (g_TextBoxBoxSprite != nullptr)
+    {
+        g_TextBoxBoxSprite->setPosition(20.f, WINDOW_HEIGHT - 80.f);
+        ui_chatText.setPosition(40.f, WINDOW_HEIGHT - 75.f);
+    }
+
     while (window.isOpen())
     {
         sf::Event event;
@@ -1052,57 +1131,108 @@ int main()
 
             else
             {
-                if (event.type == sf::Event::KeyPressed)
+                if (isChatting)
                 {
-                    if (avatar.m_isDead) continue;
-
-                    int move_x = 0;
-                    int move_y = 0;
-                    switch (event.key.code)
+                    if (event.type == sf::Event::TextEntered)
                     {
-                    case sf::Keyboard::Left:  move_x = -1; break;
-                    case sf::Keyboard::Right: move_x = 1;  break;
-                    case sf::Keyboard::Up:    move_y = -1; break;
-                    case sf::Keyboard::Down:  move_y = 1;  break;
-                    case sf::Keyboard::A: {
-                        if (lastAttackClock.getElapsedTime().asSeconds() < 1.0f) break;
-
-                        lastAttackClock.restart();
-
-                        C2S_Attack p;
-                        p.size = sizeof(p);
-                        p.type = C2S_ATTACK;
-                        send_packet(&p);
-                        break;
-                    }
-                    case sf::Keyboard::Escape: window.close(); break;
-                    }
-
-                    if (move_x != 0 || move_y != 0)
-                    {
-                        if (lastMoveClock.getElapsedTime().asSeconds() < 0.5f)
+  
+                        if (event.text.unicode == '\b')
                         {
-                            continue; 
+                            if (!chat_message.empty())
+                                chat_message.pop_back();
+                        }
+                        else if (event.text.unicode < 128 && event.text.unicode > 31 && event.text.unicode != 13)
+                        {
+                            if (chat_message.size() < 40) 
+                                chat_message += static_cast<char>(event.text.unicode);
+                        }
+                    }
+                    else if (event.type == sf::Event::KeyPressed)
+                    {
+                        if (event.key.code == sf::Keyboard::Enter)
+                        {
+                            if (!chat_message.empty())
+                            {
+                                C2S_Chat p;
+                                p.size = sizeof(C2S_Chat);
+                                p.type = C2S_CHAT;
+                                strcpy_s(p.message, chat_message.c_str());
+                                send_packet(&p);
+                                std::cout << "[Client] 서버로 채팅 전송 시도: " << p.message << std::endl;
+                            }
+                            isChatting = false; 
+                            chat_message = "";  
                         }
 
-                        int next_x = avatar.m_x + move_x;
-                        int next_y = avatar.m_y + move_y;
-
-                        if (!IsBlocked(next_x, next_y))
+                        else if (event.key.code == sf::Keyboard::Escape)
                         {
-                            lastMoveClock.restart();
+                            isChatting = false;
+                            chat_message = "";
+                        }
+                    }
+                }
+          
+                else
+                {
+                    if (event.type == sf::Event::KeyPressed)
+                    {
+         
+                        if (event.key.code == sf::Keyboard::Enter)
+                        {
+                            isChatting = true;
+                            continue;
+                        }
 
-                            C2S_Move p;
+                        if (avatar.m_isDead) continue;
+                        
+                        int move_x = 0;
+                        int move_y = 0;
+                        switch (event.key.code)
+                        {
+                        case sf::Keyboard::Left:  move_x = -1; break;
+                        case sf::Keyboard::Right: move_x = 1;  break;
+                        case sf::Keyboard::Up:    move_y = -1; break;
+                        case sf::Keyboard::Down:  move_y = 1;  break;
+                        case sf::Keyboard::A: {
+                            if (lastAttackClock.getElapsedTime().asSeconds() < 1.0f) break;
+
+                            lastAttackClock.restart();
+
+                            C2S_Attack p;
                             p.size = sizeof(p);
-                            p.type = C2S_MOVE;
-                            p.x = next_x;
-                            p.y = next_y;
-                            p.move_time = static_cast<uint64_t>(
-                                std::chrono::duration_cast<std::chrono::milliseconds>(
-                                    std::chrono::high_resolution_clock::now().time_since_epoch()
-                                ).count()
-                                );
+                            p.type = C2S_ATTACK;
                             send_packet(&p);
+                            break;
+                        }
+                        case sf::Keyboard::Escape: window.close(); break;
+                        }
+
+                        if (move_x != 0 || move_y != 0)
+                        {
+                            if (lastMoveClock.getElapsedTime().asSeconds() < 0.5f)
+                            {
+                                continue;
+                            }
+
+                            int next_x = avatar.m_x + move_x;
+                            int next_y = avatar.m_y + move_y;
+
+                            if (!IsBlocked(next_x, next_y))
+                            {
+                                lastMoveClock.restart();
+
+                                C2S_Move p;
+                                p.size = sizeof(p);
+                                p.type = C2S_MOVE;
+                                p.x = next_x;
+                                p.y = next_y;
+                                p.move_time = static_cast<uint64_t>(
+                                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::high_resolution_clock::now().time_since_epoch()
+                                    ).count()
+                                    );
+                                send_packet(&p);
+                            }
                         }
                     }
                 }
@@ -1123,6 +1253,16 @@ int main()
         {
             client_main();
             DrawStatUI();
+
+
+            if (isChatting)
+            {
+                if (g_TextBoxBoxSprite != nullptr)
+                    window.draw(*g_TextBoxBoxSprite);
+
+                ui_chatText.setString(chat_message);
+                window.draw(ui_chatText);
+            }
         }
 
         window.display();

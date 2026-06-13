@@ -290,7 +290,7 @@ void Session::HandleMovePacket(C2S_Move* packet)
             if (isCollision(x, y) || distX > 1 || distY > 1)
             {
                 S2C_MoveObject sync_packet;
-                sync_packet.size = sizeof(sync_packet);
+                sync_packet.size = sizeof(S2C_MoveObject);
                 sync_packet.type = S2C_MOVE_OBJECT;
                 sync_packet.object_id = player->_id; 
                 sync_packet.x = player->_x;         
@@ -357,6 +357,40 @@ void Session::HandleAttackPacket(C2S_Attack* packet)
             auto player = self->_owner.lock();
             if (!player) return;
             player->Attack();
+        });
+}
+
+void Session::HandleChattingPacket(C2S_Chat* packet)
+{
+    std::cout << "[Server] 클라이언트로부터 채팅 수신: " << packet->message << std::endl;
+    std::string safe_message = packet->message;
+
+    GGameLogicThread->PostEvent([self = shared_from_this(), safe_message]()
+        {
+            auto player = self->_owner.lock();
+            if (!player) return;
+
+            S2C_ChatMessage chat_packet{};
+            chat_packet.size = sizeof(S2C_ChatMessage);
+            chat_packet.type = S2C_CHAT_MESSAGE;
+
+            chat_packet.object_id = player->_id;
+
+            strcpy_s(chat_packet.message, sizeof(chat_packet.message), safe_message.c_str());
+
+               std::cout << "[Debug] chat_packet.size = " << (int)chat_packet.size 
+                      << ", sizeof = " << sizeof(S2C_ChatMessage) << std::endl;
+
+            self->DoSend(reinterpret_cast<const char*>(&chat_packet));
+
+            for (auto nearbyId : player->_viewList)
+            {
+                auto nearbyPlayer = GSessionManager->Find(nearbyId);
+                if (nearbyPlayer)
+                {
+                    nearbyPlayer->DoSend(reinterpret_cast<const char*>(&chat_packet));
+                }
+            }
         });
 }
 
@@ -532,7 +566,11 @@ void Session::ProcessPacket(char* packet)
         break;
     }
     case PACKET_TYPE::C2S_CHAT:
+    {
+        C2S_Chat* chattingPacket = reinterpret_cast<C2S_Chat*>(packet);
+        HandleChattingPacket(chattingPacket);
         break;
+    }
     case PACKET_TYPE::C2S_ATTACK:
     {
         auto player = _owner.lock();

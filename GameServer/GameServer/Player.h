@@ -35,7 +35,7 @@ public:
     void OnDamaged(int attackerId, int damage) override;
     void OnDeath(int attackerId) override;
     void Respawn() override;
-    void GetExp(int exp);
+    void GetExp(int bonus);
     void LevelUp(int currExp);
 
 public:

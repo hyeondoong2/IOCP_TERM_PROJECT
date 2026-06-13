@@ -356,14 +356,12 @@ void NPC::UpdateMove()
     auto self = shared_from_this();
     bool isAggroing = false;
 
-    // 1. 공격 타입에 따른 타겟 탐색 (PEACE는 타겟을 찾지 않음)
     int targetId = -1;
     if (_battleType == BATTLE_TYPE::AGRO)
     {
-        targetId = FindNearbyPlayer(5); // 시야 범위 5
+        targetId = FindNearbyPlayer(5); 
     }
 
-    // 2. 타겟이 있을 때 (추적 or 공격)
     if (targetId != -1)
     {
         isAggroing = true;
@@ -374,21 +372,17 @@ void NPC::UpdateMove()
         }
         else
         {
-            // 공격 범위 밖: 추적
             DoAgroMove(targetId);
         }
     }
-    // 3. 타겟이 없을 때 (Roaming or Fixed)
     else
     {
-        // 평화로울 때 공격 타이머 취소 (기획: 멀어지면 안 때림)
         _attack_player = false;
 
         if (_moveType == MOVE_TYPE::ROAMING)
         {
             DoRoamingMove();
         }
-        // FIXED는 아무것도 안 함 (가만히 있음)
     }
 
     GSectorManager->UpdateObjectSector(self);

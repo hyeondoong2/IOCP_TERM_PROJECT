@@ -153,7 +153,7 @@ void Player::Attack()
                 if (hitNpcs.find(npcId) == hitNpcs.end())
                 {
                     auto npc = std::static_pointer_cast<NPC>(obj);
-                    npc->OnDamaged(myPlayer->_id, 10);
+                    npc->OnDamaged(myPlayer->_id, 20);
                     hitNpcs.insert(npcId);
                 }
             }
@@ -274,9 +274,9 @@ void Player::Respawn()
         mySession->send_add_object_packet(shared_from_this());
 }
 
-void Player::GetExp(int exp)
+void Player::GetExp(int bonus)
 {
-    _exp += exp;
+    _exp += (_level * _level * 2 * bonus);
     if (_exp >= _level * 100) LevelUp(_exp);
 
     auto mySession = GetSession();

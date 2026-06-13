@@ -145,6 +145,8 @@ int NPC::FindNearbyPlayer(int range)
 
 void NPC::RegisterAttack(int targetId)
 {
+    if (_state == OBJECT_STATE::DEAD) return;
+
     if (_attack_player) return;
     _attack_player = true;
 
@@ -207,12 +209,13 @@ void NPC::OnDeath(int attackerId)
 {
     if (_state == OBJECT_STATE::DEAD) return;
 
+    auto self = shared_from_this();
+
     std::cout << "monster is dead" << std::endl;
     _state = OBJECT_STATE::DEAD;
     _active_npc = false;
     _attack_player = false;
 
-    auto self = shared_from_this();
     S2C_DieObject diePkt{};
     diePkt.size = sizeof(S2C_DieObject);
     diePkt.type = S2C_DIE_OBJECT;
@@ -226,9 +229,12 @@ void NPC::OnDeath(int attackerId)
                 if (auto player = session->_owner.lock())
                 {
                     player->_viewList.erase(_id);
+                    //session->send_remove_object_packet(_id);
                 }
             }
         });
+
+   //GSectorManager->RemoveObject(self);
 
     auto attacker = GObjectManager->FindObject(attackerId);
     if (attacker && IsPlayer(attackerId))
@@ -246,14 +252,17 @@ void NPC::OnDeath(int attackerId)
 
 void NPC::Respawn()
 {
-    _hp = _maxHp;      
-    _x = _originX;        
+    auto self = shared_from_this();
+
+    _hp = _maxHp;
+    _x = _originX;
     _y = _originY;
 
+    //GSectorManager->AddObject(self);
     GSectorManager->UpdateObjectSector(shared_from_this());
 
     _state = OBJECT_STATE::IN_GAME;
-    _active_npc = true;    
+    _active_npc = true;
     _attack_player = false;
 
     S2C_AddObject addPkt{};
@@ -263,7 +272,6 @@ void NPC::Respawn()
     addPkt.x = _x;
     addPkt.y = _y;
 
-    auto self = shared_from_this();
     GSectorManager->ForEachNearbyPlayer(self, [&](int playerId)
         {
             auto obj = GObjectManager->FindObject(playerId);
@@ -339,6 +347,8 @@ void NPC::Attack(int targetId)
 
 void NPC::WakeUp()
 {
+    if (_state == OBJECT_STATE::DEAD) return;
+
     if (_active_npc) return;
     _active_npc = true;
 
@@ -357,39 +367,33 @@ void NPC::UpdateMove()
     auto self = shared_from_this();
     bool isAggroing = false;
 
-    // 1. 공격 타입에 따른 타겟 탐색 (PEACE는 타겟을 찾지 않음)
     int targetId = -1;
     if (_battleType == BATTLE_TYPE::AGRO)
     {
-        targetId = FindNearbyPlayer(5); // 시야 범위 5
+        targetId = FindNearbyPlayer(5);
     }
 
-    // 2. 타겟이 있을 때 (추적 or 공격)
+
     if (targetId != -1)
     {
         isAggroing = true;
         if (IsInAttackRange(targetId, 1))
         {
-            // 공격 범위 안: 추적 멈추고 제자리에서 공격 이벤트 등록
             RegisterAttack(targetId);
         }
         else
         {
-            // 공격 범위 밖: 추적
             DoAgroMove(targetId);
         }
     }
-    // 3. 타겟이 없을 때 (Roaming or Fixed)
     else
     {
-        // 평화로울 때 공격 타이머 취소 (기획: 멀어지면 안 때림)
         _attack_player = false;
 
         if (_moveType == MOVE_TYPE::ROAMING)
         {
             DoRoamingMove();
         }
-        // FIXED는 아무것도 안 함 (가만히 있음)
     }
 
     GSectorManager->UpdateObjectSector(self);

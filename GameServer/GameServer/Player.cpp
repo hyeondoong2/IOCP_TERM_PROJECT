@@ -138,7 +138,7 @@ void Player::Attack()
     }
 
     auto myPlayer = shared_from_this();
-    std::unordered_set<int> hitNpcs; 
+    std::unordered_set<int> hitNpcs;
 
     GSectorManager->ForEachNearbyNPC(myPlayer, [&](int npcId)
         {
@@ -297,6 +297,6 @@ void Player::GetExp(int exp)
 
 void Player::LevelUp(int currExp)
 {
+    _exp = currExp - (100 * _level);
     _level += 1;
-    _exp = currExp - 100;
 }

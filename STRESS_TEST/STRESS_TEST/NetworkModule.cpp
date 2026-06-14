@@ -374,9 +374,7 @@ fail_to_connect:
 
 void Test_Thread()
 {
-    std::string ipAddress;
-    std::cout << "접속할 IP 주소를 입력하세요: ";
-    std::cin >> ipAddress;
+    std::string ipAddress = "127.0.0.1";
 
     while (true)
     {

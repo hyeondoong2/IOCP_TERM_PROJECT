@@ -207,7 +207,7 @@ void Session::HandleLoginPacket(C2S_Login* packet)
             if (GObjectManager->IsPlayerNameInUse(username))
             {
                 self->send_login_fail_packet();
-                return; 
+                return;
             }
 
             self->ProcessLoginDatabase(username, wUsername);
@@ -283,6 +283,17 @@ void Session::HandleMovePacket(C2S_Move* packet)
             auto player = self->_owner.lock();
             if (!player) return;
 
+            uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                TimerThread::Now().time_since_epoch()).count();
+
+            if (player->_lastMoveTime != 0 && (player->_lastMoveTime + 500 > now_ms))
+            {
+                return;
+            }
+
+            player->_lastMoveTime = now_ms;
+
+
             int distX = std::abs(player->_x - x);
             int distY = std::abs(player->_y - y);
 
@@ -292,9 +303,9 @@ void Session::HandleMovePacket(C2S_Move* packet)
                 S2C_MoveObject sync_packet;
                 sync_packet.size = sizeof(S2C_MoveObject);
                 sync_packet.type = S2C_MOVE_OBJECT;
-                sync_packet.object_id = player->_id; 
-                sync_packet.x = player->_x;         
-                sync_packet.y = player->_y;         
+                sync_packet.object_id = player->_id;
+                sync_packet.x = player->_x;
+                sync_packet.y = player->_y;
                 sync_packet.move_time = move_time;
 
                 self->DoSend(reinterpret_cast<const char*>(&sync_packet));
@@ -356,6 +367,18 @@ void Session::HandleAttackPacket(C2S_Attack* packet)
         {
             auto player = self->_owner.lock();
             if (!player) return;
+
+            uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                TimerThread::Now().time_since_epoch()).count();
+
+            if (player->_lastAttackTime != 0 && (player->_lastAttackTime + 1000 > now_ms))
+            {
+                return;
+            }
+
+            player->_lastAttackTime = now_ms;
+
+
             player->Attack();
         });
 }
@@ -363,33 +386,42 @@ void Session::HandleAttackPacket(C2S_Attack* packet)
 void Session::HandleChattingPacket(C2S_Chat* packet)
 {
     std::cout << "[Server] 클라이언트로부터 채팅 수신: " << packet->message << std::endl;
+
     std::string safe_message = packet->message;
 
     GGameLogicThread->PostEvent([self = shared_from_this(), safe_message]()
         {
-            auto player = self->_owner.lock();
-            if (!player) return;
+            auto sender = self->_owner.lock();
+            if (!sender) return;
+            if (!sender->IsInGame()) return;
 
             S2C_ChatMessage chat_packet{};
             chat_packet.size = sizeof(S2C_ChatMessage);
             chat_packet.type = S2C_CHAT_MESSAGE;
-
-            chat_packet.object_id = player->_id;
+            chat_packet.object_id = sender->_id;
 
             strcpy_s(chat_packet.message, sizeof(chat_packet.message), safe_message.c_str());
 
-               std::cout << "[Debug] chat_packet.size = " << (int)chat_packet.size 
-                      << ", sizeof = " << sizeof(S2C_ChatMessage) << std::endl;
-
             self->DoSend(reinterpret_cast<const char*>(&chat_packet));
 
-            for (auto nearbyId : player->_viewList)
+            for (int nearbyId : sender->_viewList)
             {
-                auto nearbyPlayer = GSessionManager->Find(nearbyId);
-                if (nearbyPlayer)
-                {
-                    nearbyPlayer->DoSend(reinterpret_cast<const char*>(&chat_packet));
-                }
+                if (!IsPlayer(nearbyId))
+                    continue;
+
+                auto nearbyObj = GObjectManager->FindObject(nearbyId);
+                if (!nearbyObj)
+                    continue;
+
+                auto nearbyPlayer = std::static_pointer_cast<Player>(nearbyObj);
+                if (!nearbyPlayer)
+                    continue;
+
+                auto session = nearbyPlayer->GetSession();
+                if (!session)
+                    continue;
+
+                session->DoSend(reinterpret_cast<const char*>(&chat_packet));
             }
         });
 }
@@ -551,16 +583,6 @@ void Session::ProcessPacket(char* packet)
         auto player = _owner.lock();
         if (!player) return;
 
-        uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            TimerThread::Now().time_since_epoch()).count();
-
-        if (player->_lastMoveTime != 0 && (player->_lastMoveTime + 500 > now_ms))
-        {
-            return;
-        }
-
-        player->_lastMoveTime = now_ms;
-
         C2S_Move* movePacket = reinterpret_cast<C2S_Move*>(packet);
         HandleMovePacket(movePacket);
         break;
@@ -575,16 +597,6 @@ void Session::ProcessPacket(char* packet)
     {
         auto player = _owner.lock();
         if (!player) return;
-
-        uint64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            TimerThread::Now().time_since_epoch()).count();
-
-        if (player->_lastAttackTime != 0 && (player->_lastAttackTime + 1000 > now_ms))
-        {
-            return;
-        }
-
-        player->_lastAttackTime = now_ms;
 
         C2S_Attack* attackPacket = reinterpret_cast<C2S_Attack*>(packet);
         HandleAttackPacket(attackPacket);

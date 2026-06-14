@@ -131,6 +131,8 @@ int NPC::FindNearbyPlayer(int range)
             auto obj = GObjectManager->FindObject(playerId);
             if (!obj) return;
 
+            if (!GSectorManager->CanSee(self, obj)) return;
+
             int distSq = (obj->_x - _x) * (obj->_x - _x) + (obj->_y - _y) * (obj->_y - _y);
 
             if (distSq <= minDistance)
@@ -157,6 +159,20 @@ void NPC::RegisterAttack(int targetId)
     GTimerThread->RegisterEvent(nextEvent);
 }
 
+void NPC::RegisterMove()
+{
+    if (_active_npc) return;
+
+    _active_npc = true;
+
+    TIMER_EVENT nextEvent;
+    nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
+    nextEvent.obj_id = _id;
+    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(NPC_MOVE_INTERVAL);
+
+    GTimerThread->RegisterEvent(nextEvent);
+}
+
 void NPC::OnDamaged(int attackerId, int damage)
 {
     if (_battleType == BATTLE_TYPE::PEACE) return;
@@ -178,7 +194,7 @@ void NPC::OnDamaged(int attackerId, int damage)
             if (!obj) return;
 
             auto player = std::static_pointer_cast<Player>(obj);
-            auto session = GSessionManager->Find(playerId);
+            auto session = player->GetSession();
             if (!session) return;
 
             bool canSeeNow = GSectorManager->CanSee(self, obj);
@@ -220,14 +236,13 @@ void NPC::OnDeath(int attackerId)
 
     GSectorManager->ForEachNearbyPlayer(self, [&](int playerId)
         {
-            auto session = GSessionManager->Find(playerId);
-            {
-                if (session) session->DoSend(reinterpret_cast<const char*>(&diePkt));
-                if (auto player = session->_owner.lock())
-                {
-                    player->_viewList.erase(_id);
-                }
-            }
+            auto obj = GObjectManager->FindObject(playerId);
+            if (!obj) return;
+
+            auto player = std::static_pointer_cast<Player>(obj);
+            auto session = player->GetSession();
+            if (session) session->DoSend(reinterpret_cast<const char*>(&diePkt));
+            player->_viewList.erase(_id);
         });
 
     auto attacker = GObjectManager->FindObject(attackerId);
@@ -246,14 +261,16 @@ void NPC::OnDeath(int attackerId)
 
 void NPC::Respawn()
 {
-    _hp = _maxHp;      
-    _x = _originX;        
+    auto self = shared_from_this();
+
+    _hp = _maxHp;
+    _x = _originX;
     _y = _originY;
 
     GSectorManager->UpdateObjectSector(shared_from_this());
 
     _state = OBJECT_STATE::IN_GAME;
-    _active_npc = true;    
+    _active_npc = false;
     _attack_player = false;
 
     S2C_AddObject addPkt{};
@@ -263,7 +280,8 @@ void NPC::Respawn()
     addPkt.x = _x;
     addPkt.y = _y;
 
-    auto self = shared_from_this();
+    bool hasViewer = false;
+
     GSectorManager->ForEachNearbyPlayer(self, [&](int playerId)
         {
             auto obj = GObjectManager->FindObject(playerId);
@@ -271,11 +289,17 @@ void NPC::Respawn()
 
             if (!GSectorManager->CanSee(self, obj)) return;
 
-            if (auto session = GSessionManager->Find(playerId))
+            auto player = std::static_pointer_cast<Player>(obj);
+            if (auto session = player->GetSession())
             {
                 session->DoSend(reinterpret_cast<const char*>(&addPkt));
             }
         });
+
+    if (hasViewer)
+    {
+        RegisterMove();
+    }
 }
 
 bool NPC::IsInAttackRange(int targetId, int range)
@@ -290,6 +314,8 @@ bool NPC::IsInAttackRange(int targetId, int range)
 
 void NPC::Attack(int targetId)
 {
+    _attack_player = false;
+
     if (_state == OBJECT_STATE::DEAD) return;
 
     auto target = GObjectManager->FindObject(targetId);
@@ -321,7 +347,7 @@ void NPC::Attack(int targetId)
             if (!obj) return;
 
             auto player = std::static_pointer_cast<Player>(obj);
-            auto session = GSessionManager->Find(playerId);
+            auto session = player->GetSession();
             if (!session) return;
 
             bool canSeeNow = GSectorManager->CanSee(self, obj);
@@ -338,15 +364,7 @@ void NPC::Attack(int targetId)
 
 void NPC::WakeUp()
 {
-    if (_active_npc) return;
-    _active_npc = true;
-
-    TIMER_EVENT nextEvent;
-    nextEvent.event_type = TIMER_EVENT_NPC_MOVE;
-    nextEvent.obj_id = this->_id;
-    nextEvent.wakeup_time = TimerThread::Now() + std::chrono::milliseconds(NPC_MOVE_INTERVAL);
-
-    GTimerThread->RegisterEvent(nextEvent);
+    RegisterMove();
 }
 
 void NPC::UpdateMove()
@@ -359,7 +377,7 @@ void NPC::UpdateMove()
     int targetId = -1;
     if (_battleType == BATTLE_TYPE::AGRO)
     {
-        targetId = FindNearbyPlayer(5); 
+        targetId = FindNearbyPlayer(5);
     }
 
     if (targetId != -1)
@@ -377,8 +395,6 @@ void NPC::UpdateMove()
     }
     else
     {
-        _attack_player = false;
-
         if (_moveType == MOVE_TYPE::ROAMING)
         {
             DoRoamingMove();
@@ -419,23 +435,32 @@ bool NPC::BroadcastMoveToPlayers(std::shared_ptr<GameObject> self)
             if (!obj) return;
 
             auto player = std::static_pointer_cast<Player>(obj);
-            auto session = GSessionManager->Find(playerId);
+            auto session = player->GetSession();
             if (!session) return;
 
             hasNearbyPlayer = true;
             bool canSeeNow = GSectorManager->CanSee(self, obj);
+            bool wasSeeing = player->IsInViewList(_id);
 
             if (canSeeNow)
             {
-                if (player->IsInViewList(_id))
+                if (wasSeeing)
+                {
                     session->DoSend(reinterpret_cast<const char*>(&movePkt));
+                }
                 else
+                {
                     session->send_add_object_packet(self);
+                    player->_viewList.insert(_id);
+                }
             }
             else
             {
-                if (player->IsInViewList(_id))
+                if (wasSeeing)
+                {
                     session->send_remove_object_packet(_id);
+                    player->_viewList.erase(_id);
+                }
             }
         });
 

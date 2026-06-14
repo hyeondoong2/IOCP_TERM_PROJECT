@@ -100,13 +100,13 @@ private:
     sf::Clock m_attackClock;
 
 public:
-    int id;
+    int id = 0;
     int m_x, m_y;
     char name[MAX_NAME_LEN];
-    int m_hp;
-    int m_max_hp;
-    int m_exp;
-    int m_lv;
+    int m_hp = 0;
+    int m_max_hp = 0;
+    int m_exp = 0;
+    int m_lv = 0;
     bool m_isDead = false;
     bool m_isDeathAnimDone = false;
 
@@ -302,9 +302,9 @@ public:
         float spriteCenterX = rx;
 
         auto name_size = m_name.getGlobalBounds();
-        m_name.setPosition(spriteCenterX - name_size.width / 2.f, ry - (32.f * scale) - 5.f);
+        m_name.setPosition(spriteCenterX - name_size.width / 2.f, ry - (32.f * scale) +10.f);
 
-        if (id == g_myid)
+        if (id < MAX_PLAYERS)
         {
             g_window->draw(m_name);
         }
@@ -317,24 +317,29 @@ public:
             {
                 auto box_local_size = g_ChattingBoxSprite->getLocalBounds();
 
-                float padding = 30.f;
-                float boxScaleX = (chat_size.width + padding) / box_local_size.width;
-                float boxScaleY = 1.0f; // 세로는 고정
+                float paddingX = 40.f;
+                float paddingY = 35.f;
+
+                float boxScaleX = (chat_size.width + paddingX) / box_local_size.width;
+                float boxScaleY = (chat_size.height + paddingY) / box_local_size.height;
+
+                float uniformScale = std::max(boxScaleX, boxScaleY);
+                boxScaleX = uniformScale; boxScaleY = uniformScale;
 
                 g_ChattingBoxSprite->setScale(boxScaleX, boxScaleY);
 
                 auto box_global_size = g_ChattingBoxSprite->getGlobalBounds();
 
+  
                 float boxX = spriteCenterX - (box_global_size.width / 2.f);
-                float boxY = ry - (32.f * scale) - box_global_size.height - 10.f; 
+                float boxY = ry - (32.f * scale) - box_global_size.height - 3.f;
 
                 g_ChattingBoxSprite->setPosition(boxX, boxY);
                 g_window->draw(*g_ChattingBoxSprite);
 
-
                 float textX = spriteCenterX - (chat_size.width / 2.f);
 
-                float textY = boxY + (box_global_size.height / 2.f) - (chat_size.height / 2.f) - 10.f;
+                float textY = boxY + (box_global_size.height / 2.f) - (chat_size.height / 2.f) -10.f;
 
                 m_chat.setPosition(textX, textY);
                 g_window->draw(m_chat);
@@ -343,7 +348,7 @@ public:
             {
                 // 말풍선 이미지가 없을 때 텍스트만 그리는 예외 처리
                 float textX = spriteCenterX - (chat_size.width / 2.f);
-                float textY = ry - (32.f * scale) - 30.f;
+                float textY = ry - (32.f * scale) - 15.f;
                 m_chat.setPosition(textX, textY);
                 g_window->draw(m_chat);
             }
@@ -363,10 +368,8 @@ public:
 
     void set_chat(const char str[])
     {
-        std::string chat_with_name = std::string(name) + ": " + str;
-
         m_chat.setFont(g_font);
-        m_chat.setString(chat_with_name);
+        m_chat.setString(str);
         m_chat.setCharacterSize(20);
         m_chat.setFillColor(sf::Color(103, 48, 36));
         m_chat.setStyle(sf::Text::Bold);
@@ -711,6 +714,7 @@ void ProcessPacket(char* ptr)
         S2C_AvatarInfo* packet = reinterpret_cast<S2C_AvatarInfo*>(ptr);
         g_myid = packet->playerId;
         avatar.id = g_myid;
+        avatar.set_name(avatar.name);
         avatar.move(packet->x, packet->y);
         avatar.m_hp = packet->hp;
         avatar.m_max_hp = packet->max_hp;
@@ -1071,7 +1075,7 @@ int main()
     sf::Text ui_chatText;
     ui_chatText.setFont(g_font);
     ui_chatText.setCharacterSize(24);
-    ui_chatText.setFillColor(sf::Color::White);
+    ui_chatText.setFillColor(sf::Color(103, 48, 36));
 
     if (g_TextBoxBoxSprite != nullptr)
     {

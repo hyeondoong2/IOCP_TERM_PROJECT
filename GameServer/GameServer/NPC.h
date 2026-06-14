@@ -35,6 +35,7 @@ public:
     void WakeUp();
     void UpdateMove();
     void RegisterAttack(int targetId);
+    void RegisterMove();
     void Attack(int targetId);
     bool IsInAttackRange(int targetId, int range = 2);
 
